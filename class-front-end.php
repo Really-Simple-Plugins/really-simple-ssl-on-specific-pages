@@ -4,20 +4,19 @@ defined('ABSPATH') or die("you do not have acces to this page!");
 if ( ! class_exists( 'rsssl_front_end' ) ) {
   class rsssl_front_end {
     private static $_this;
-    public $force_ssl_without_detection     = FALSE;
     public $site_has_ssl                    = FALSE;
-    public $javascript_redirect             = TRUE;
     public $autoreplace_insecure_links      = TRUE;
     public $http_urls                       = array();
+    public $ssl_pages                       = array();
+    public $exclude_pages                   = FALSE;
+    public $permanent_redirect              = FALSE;
 
   function __construct() {
     if ( isset( self::$_this ) )
         wp_die( sprintf( __( '%s is a singleton class and you cannot create a second instance.','really-simple-ssl' ), get_class( $this ) ) );
 
     self::$_this = $this;
-
     $this->get_options();
-
   }
 
   static function this() {
@@ -35,34 +34,76 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
    */
 
   public function force_ssl() {
-    if ($this->javascript_redirect) add_action('wp_print_scripts', array($this,'force_ssl_with_javascript'));
+    if ($this->ssl_enabled) {
+      add_filter('home_url', array($this, 'conditional_ssl_home_url'),10,4);
+      add_action('wp', array($this, 'redirect_to_ssl'), 40,3);
+    }
 
-    if (($this->site_has_ssl || $this->force_ssl_without_detection) && $this->autoreplace_insecure_links) {
-      add_action('template_include', array($this, 'replace_insecure_links'), 0);
+    if (is_ssl() && $this->autoreplace_insecure_links) {
+      add_action('template_include', array($this, 'replace_insecure_links_buffer'), 0);
     }
   }
 
+  public function conditional_ssl_home_url($url, $path) {
 
-  /**
-   * Creates an array of insecure links that should be https and an array of secure links to replace with
-   *
-   * @since  2.0
-   *
-   * @access public
-   *
-   */
+  	$page = get_page_by_path( $path , OBJECT, get_post_types() );
+  	if (!empty($page))  {
+  		if (!$this->is_ssl_page($page->ID)) {
+  			return str_replace( 'https://', 'http://', $url );
+  		}
+  		if ($this->is_ssl_page($page->ID)) {
+  			return str_replace( 'http://', 'https://', $url );
+  		}
+  	}
 
-  public function build_url_list() {
-    $home_no_www  = str_replace ( "://www." , "://" , get_option('home'));
-    $home_yes_www = str_replace ( "://" , "://www." , $home_no_www);
-
-    $this->http_urls = array(
-        str_replace ( "https://" , "http://" , $home_yes_www),
-        str_replace ( "https://" , "http://" , $home_no_www),
-        "src='http://",
-        'src="http://',
-    );
+  	//when nothing found, return default, which depends on exclusion settings.
+    if ($this->exclude_pages) {
+  	    return str_replace( 'http://', 'https://', $url );
+    } else {
+        return str_replace( 'https://', 'http://', $url );
+    }
   }
+
+ public function redirect_to_ssl() {
+
+  if (($this->is_ssl_page()) && !is_ssl()) {
+		$redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    $redirect_type = $this->permanent_redirect ? "301" : "302";
+    wp_redirect($redirect_url, $redirect_type);
+    exit;
+	}
+}
+
+  /*
+    checks if current page, post or other posttype is supposed to be on SSL.
+
+    if exclude url enabled, true for all pages EXCEPT in the pages list
+    if not exclude url enabled, only true for pages in the pages list.
+  */
+
+  private function is_ssl_page($post_id=null){
+    //when pages are excluded from SSL, default SSL
+    $sslpage = FALSE;
+    if ($this->exclude_pages) {
+        $sslpage = TRUE;
+    }
+
+    if (empty($post_id)) {
+      global $post;
+      if ($post) $post_id = $post->ID;
+    }
+
+    $sslpage = false;
+    if ($post_id) {
+      if (in_array($post_id, $this->ssl_pages)) $sslpage = TRUE;
+    }
+
+    if ($this->exclude_pages)
+        $sslpage = !$sslpage;
+
+    return $sslpage;
+  }
+
 
   /**
    * Get the options for this plugin
@@ -77,16 +118,15 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     $options = get_option('rlrsssl_options');
 
     if (isset($options)) {
-      $this->force_ssl_without_detection  = isset($options['force_ssl_without_detection']) ? $options['force_ssl_without_detection'] : FALSE;
       $this->site_has_ssl                 = isset($options['site_has_ssl']) ? $options['site_has_ssl'] : FALSE;
+      $this->exclude_pages                = isset($options['exclude_pages']) ? $options['exclude_pages'] : FALSE;
+      $this->permanent_redirect           = isset($options['permanent_redirect']) ? $options['permanent_redirect'] : FALSE;
       $this->autoreplace_insecure_links   = isset($options['autoreplace_insecure_links']) ? $options['autoreplace_insecure_links'] : TRUE;
       $this->ssl_enabled                  = isset($options['ssl_enabled']) ? $options['ssl_enabled'] : $this->site_has_ssl;
-      $this->javascript_redirect          = isset($options['javascript_redirect']) ? $options['javascript_redirect'] : TRUE;
+      $this->ssl_pages                    = isset($options['ssl_pages']) ? $options['ssl_pages'] : array();
     }
 
-    if ($this->autoreplace_insecure_links || is_admin()) {
-      $this->build_url_list();
-    }
+
   }
 
   /**
@@ -98,11 +138,33 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
    *
    */
 
-   public function replace_insecure_links($template) {
-     if ($this->ssl_enabled && ($this->site_has_ssl || $this->force_ssl_without_detection) && $this->autoreplace_insecure_links) {
-       ob_start(array($this, 'end_buffer_capture'));  // Start Page Buffer
-     }
+   public function replace_insecure_links_buffer($template) {
+     ob_start(array($this, 'replace_insecure_links'));
      return $template;
+   }
+
+   /**
+    * Checks if we are currently on ssl protocol, but extends standard wp with loadbalancer check.
+    *
+    * @since  2.0
+    *
+    * @access public
+    *
+    */
+
+   public function is_ssl_extended(){
+     if(!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https' || !empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] == 'on') {
+       $loadbalancer = TRUE;
+     }
+     else {
+       $loadbalancer = FALSE;
+     }
+
+     if (is_ssl() || $loadbalancer){
+       return true;
+     } else {
+       return false;
+     }
    }
 
    /**
@@ -114,11 +176,13 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     *
     */
 
-  public function end_buffer_capture($buffer) {
-    $search_array = apply_filters('rlrsssl_replace_url_args', $this->http_urls);
+  public function replace_insecure_links($buffer) {
+
+    $search_array = array("src='http://",'src="http://');
+    $search_array = apply_filters('rlrsssl_replace_url_args', $search_array);
     $ssl_array = str_replace ( "http://" , "https://", $search_array);
     //now replace these links
-    $buffer = str_replace ($search_array , $ssl_array , $buffer);
+    $buffer = str_replace ($search_array, $ssl_array , $buffer);
 
     //replace all http links except hyperlinks
     //all tags with src attr are already fixed by str_replace
@@ -126,34 +190,14 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
       '/url\([\'"]?\K(http:\/\/)(?=[^)]+)/i',
       '/<link .*?href=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
       '/<meta property="og:image" .*?content=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
+      '/<form [^>]*?action=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
       //'/<(?:img|iframe) .*?src=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
       //'/<script [^>]*?src=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
     );
     $buffer = preg_replace($pattern, 'https://', $buffer);
-    $buffer = $buffer.'<!-- rs-ssl -->';
+    $buffer = $buffer.'<!-- Really Simple SSL mixed content fixer active -->';
 
     return apply_filters("rsssl_fixer_output", $buffer);;
-  }
-
-  /**
-   * Adds some javascript to redirect to https.
-   *
-   * @since  1.0
-   *
-   * @access public
-   *
-   */
-
-  public function force_ssl_with_javascript() {
-    if ($this->site_has_ssl || $this->force_ssl_without_detection) {
-        ?>
-        <script>
-        if (document.location.protocol != "https:") {
-            document.location = document.URL.replace(/^http:/i, "https:");
-        }
-        </script>
-        <?php
-      }
   }
 
 }}

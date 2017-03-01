@@ -1,6 +1,6 @@
 <?php
 defined('ABSPATH') or die("you do not have acces to this page!");
-
+if (!class_exists('rsssl_admin')) {
   class rsssl_admin extends rsssl_front_end {
 
   private static $_this;
@@ -15,25 +15,25 @@ defined('ABSPATH') or die("you do not have acces to this page!");
   public $ssl_enabled                         = FALSE;
 
   //multisite variables
-  public $set_rewriterule_per_site          = FALSE;
-  public $sites                             = Array(); //for multisite, list of all activated sites.
+  public $ssl_enabled_networkwide           = FALSE;
+  public $selected_networkwide_or_per_site  = FALSE;
 
   //general settings
   public $capability                        = 'manage_options';
 
   public $ssl_test_page_error;
-  public $htaccess_test_success             = FALSE;
 
-  public $plugin_dir                        = "really-simple-ssl";
-  public $plugin_filename                   = "rlrsssl-really-simple-ssl.php";
+  public $plugin_dir                        = "really-simple-ssl-on-specific-pages";
+  public $plugin_filename                   = "really-simple-ssl-on-specific-pages.php";
   public $ABSpath;
 
-  public $do_not_edit_htaccess              = FALSE;
-  public $htaccess_warning_shown            = FALSE;
-  public $wpmu_subfolder_warning_shown      = FALSE;
-  public $ssl_success_message_shown         = FALSE;
+  //this option is needed for compatibility with the per page plugin.
   public $hsts                              = FALSE;
+
+  public $yoasterror_shown                  = FALSE;
+  public $ssl_success_message_shown         = FALSE;
   public $debug							                = TRUE;
+
   public $debug_log;
 
   public $plugin_conflict                   = ARRAY();
@@ -41,10 +41,7 @@ defined('ABSPATH') or die("you do not have acces to this page!");
   public $plugin_version;
   public $plugin_db_version;
   public $plugin_upgraded;
-  public $mixed_content_fixer_status        =0;
-
-  public $ssl_redirect_set_in_htaccess      = FALSE;
-  public $settings_changed                  = FALSE;
+  public $mixed_content_fixer_status        = 0;
   public $ssl_type                          = "NA";
                                             //possible values:
                                             //"NA":     test page did not return valid response
@@ -86,10 +83,8 @@ defined('ABSPATH') or die("you do not have acces to this page!");
    */
 
   public function init() {
-    global $rsssl_cache;
-    $is_on_settings_page = $this->is_settings_page();
 
-    if ($this->set_rewriterule_per_site) $this->build_domain_list();
+    $is_on_settings_page = $this->is_settings_page();
     $this->get_plugin_url();//has to be after the domain list was built.
 
     /*
@@ -102,24 +97,32 @@ defined('ABSPATH') or die("you do not have acces to this page!");
     if ($this->clicked_activate_ssl() || !$this->ssl_enabled || !$this->site_has_ssl || $is_on_settings_page) {
       $this->detect_configuration();
 
+      //flush caches when just activated ssl, or when ssl is enabled
+      if ($this->clicked_activate_ssl() || ($this->ssl_enabled)) {
+        global $rsssl_cache;
+        add_action('admin_init', array($rsssl_cache,'flush'),40);
+      }
+
       if (!$this->wpconfig_ok()) {
         //if we were to activate ssl, this could result in a redirect loop. So warn first.
-        //$this->site_has_ssl = false;
         add_action("admin_notices", array($this, 'show_notice_wpconfig_needs_fixes'));
+        if (is_multisite()) add_action('network_admin_notices', array($this, 'show_notice_wpconfig_needs_fixes'), 10);
+
         $this->ssl_enabled = false;
         $this->save_options();
       } elseif ($this->ssl_enabled) {
         add_action('init',array($this,'configure_ssl'),20);
-        add_action('admin_init', array($rsssl_cache,'flush'),40);
       }
     }
 
-    //when no ssl is detected, and not enabled by user, ask for activation.
-    if (!$this->ssl_enabled) {
+    if (is_multisite() && !$this->selected_networkwide_or_per_site) {
+      add_action('network_admin_notices', array($this, 'show_notice_activate_networkwide'), 10);
+    }
+
+    //when ssl and not enabled by user, ask for activation.
+    if (!$this->ssl_enabled && (!is_multisite() || $this->selected_networkwide_or_per_site) ) {
       $this->trace_log("ssl not enabled, show notice");
       add_action("admin_notices", array($this, 'show_notice_activate_ssl'),10);
-    } else {
-      $this->trace_log("ssl already enabled");
     }
 
     add_action('plugins_loaded', array($this,'check_plugin_conflicts'),30);
@@ -131,9 +134,8 @@ defined('ABSPATH') or die("you do not have acces to this page!");
     $this->check_for_uninstall_file();
 
     //callbacks for the ajax dismiss buttons
-    add_action('wp_ajax_dismiss_htaccess_warning', array($this,'dismiss_htaccess_warning_callback') );
-    add_action('wp_ajax_dismiss_wpmu_subfolder_warning', array($this,'dismiss_wpmu_subfolder_warning_callback') );
     add_action('wp_ajax_dismiss_success_message', array($this,'dismiss_success_message_callback') );
+    add_action('wp_ajax_dismiss_yoasterror', array($this,'dismiss_yoasterror_callback') );
 
     //handle notices
     add_action('admin_notices', array($this,'show_notices'));
@@ -146,28 +148,108 @@ defined('ABSPATH') or die("you do not have acces to this page!");
   */
 
   private function clicked_activate_ssl() {
-    if (isset($_POST['rsssl_do_activate_ssl']) && isset( $_POST['rsssl_nonce'] ) && wp_verify_nonce( $_POST['rsssl_nonce'], 'rsssl_nonce' ) ) {
+    if (!isset( $_POST['rsssl_nonce'] ) || !wp_verify_nonce( $_POST['rsssl_nonce'], 'rsssl_nonce' )) return false;
+
+    if (isset($_POST['rsssl_do_activate_ssl'])) {
       $this->ssl_enabled=true;
       $this->save_options();
       return true;
     }
+
+    if (is_multisite() && isset($_POST['rsssl_do_activate_ssl_networkwide'])) {
+      $sites = wp_get_sites();
+      foreach ( $sites as $site ) {
+        switch_to_blog( $site[ 'blog_id' ] );
+        $this->ssl_enabled = true;
+        $this->save_options();
+        restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
+      }
+
+      $this->selected_networkwide_or_per_site = true;
+      $this->ssl_enabled_networkwide = true;
+      $this->save_options();
+      return true;
+    }
+
+    if (is_multisite() && isset($_POST['rsssl_do_activate_ssl_per_site'])) {
+      $this->ssl_enabled_networkwide = false;
+      $this->selected_networkwide_or_per_site = true;
+      $this->save_options();
+      return true;
+    }
+
+
     return false;
   }
 
-public function wpconfig_ok(){
-  if (($this->do_wpconfig_loadbalancer_fix || $this->no_server_variable || $this->wpconfig_siteurl_not_fixed) && !$this->wpconfig_is_writable() ) {
-    return false;
-  } else {
-    return true;
+  public function wpconfig_ok(){
+    if (($this->do_wpconfig_loadbalancer_fix || $this->no_server_variable || $this->wpconfig_siteurl_not_fixed) && !$this->wpconfig_is_writable() ) {
+      return false;
+    } else {
+      return true;
+    }
   }
-}
+
+
+  /**
+   * On plugin activation, we can check if it is networkwide or not.
+   *
+   * @since  2.1
+   *
+   * @access public
+   *
+   */
+
+  public function activate($networkwide) {
+    if (!is_multisite()) return;
+    //if networkwide, we ask, if not, we set it as selected.
+    if (!$networkwide) {
+        $this->trace_log("per site activation");
+        $this->ssl_enabled_networkwide = FALSE;
+        $this->selected_networkwide_or_per_site = TRUE;
+        $this->save_options();
+    }
+
+  }
+
+  /**
+   * Give the user an option to activate network wide or not.
+   *
+   * @since  2.3
+   *
+   * @access public
+   *
+   */
+
+  public function show_notice_activate_networkwide(){
+    if (is_main_site(get_current_blog_id()) && $this->wpconfig_ok()) {
+      ?>
+      <div id="message" class="updated fade notice activate-ssl">
+        <h1><?php _e("Choose your preferred setup","really-simple-ssl");?></h1>
+      <p>
+        <form action="" method="post">
+          <?php wp_nonce_field( 'rsssl_nonce', 'rsssl_nonce' );?>
+          <input type="submit" class='button button-primary' value="<?php _e("Activate SSL networkwide","really-simple-ssl");?>" id="rsssl_do_activate_ssl_networkwide" name="rsssl_do_activate_ssl_networkwide">
+          <input type="submit" class='button button-primary' value="<?php _e("Activate SSL per site","really-simple-ssl");?>" id="rsssl_do_activate_ssl_per_site" name="rsssl_do_activate_ssl_per_site">
+        </form>
+      </p>
+      <p>
+        <?php _e("Networkwide activation does not check if a site has an SSL certificate, but you can select the pages you want on SSL for each site separately.","really-simple-ssl");?>
+      </p>
+      </div>
+      <?php
+    }
+  }
 
   /*
       This message is shown when no ssl is not enabled by the user yet
   */
 
   public function show_notice_activate_ssl(){
+    //for multisite, show no ssl message only on main blog.
+    if (is_multisite() && !is_main_site(get_current_blog_id()) && !$this->site_has_ssl) return;
     if (!$this->wpconfig_ok()) return;
+    if (!current_user_can($this->capability)) return;
 
     if (!$this->site_has_ssl) {  ?>
       <div id="message" class="error fade notice activate-ssl">
@@ -176,26 +258,23 @@ public function wpconfig_ok(){
     <?php } else {?>
 
     <div id="message" class="updated fade notice activate-ssl">
-      <h1><?php _e("Almost ready to migrate to SSL!","really-simple-ssl");?></h1>
+      <h1><?php _e("Almost ready to enable SSL for some pages!","really-simple-ssl");?></h1>
     <?php
   }?>
-  <?php _e("Some things can't be done automatically. Before you migrate, please check for: ",'really-simple-ssl');?>
+  <?php _e("Some things can't be done automatically. Before you start, please check for: ",'really-simple-ssl');?>
   <p>
     <ul>
-      <li><?php _e('Http resources in your .css and .js files: change any http:// into //','really-simple-ssl');?></li>
-      <li><?php _e('External resources in your site that cannot load on ssl: remove them or move to your own server.','really-simple-ssl');?></li>
-      <li><?php _e('Urls to your server without ssl certificate: change into your own url.','really-simple-ssl');?></li>
+      <li><?php _e('Http references in your .css and .js files: change any http:// into //','really-simple-ssl');?></li>
+      <li><?php _e('Images, stylesheets or scripts from a domain without an ssl certificate: remove them or move to your own server.','really-simple-ssl');?></li>
     </ul>
   </p>
-  <?php $this->show_pro(); ?>
 
-  <?php if ($this->site_has_ssl) { ?>
+  <?php if ($this->site_has_ssl) {?>
       <form action="" method="post">
         <?php wp_nonce_field( 'rsssl_nonce', 'rsssl_nonce' );?>
-        <input type="submit" class='button button-primary' value="Go ahead, activate SSL!" id="rsssl_do_activate_ssl" name="rsssl_do_activate_ssl">
+        <input type="submit" class='button button-primary' value="Enable SSL per page!" id="rsssl_do_activate_ssl" name="rsssl_do_activate_ssl">
       </form>
   <?php } ?>
-
   </div>
   <?php }
 
@@ -246,124 +325,22 @@ public function wpconfig_ok(){
    */
 
   public function get_admin_options(){
-    //if the define is true, it overrides the db setting.
-    $this->do_not_edit_htaccess = (defined( 'RLRSSSL_DO_NOT_EDIT_HTACCESS' ) &&  RLRSSSL_DO_NOT_EDIT_HTACCESS) ? TRUE : FALSE;
-
     $options = get_option('rlrsssl_options');
     if (isset($options)) {
-      $this->hsts                               = isset($options['hsts']) ? $options['hsts'] : FALSE;
-      $this->htaccess_warning_shown             = isset($options['htaccess_warning_shown']) ? $options['htaccess_warning_shown'] : FALSE;
-      $this->wpmu_subfolder_warning_shown       = isset($options['wpmu_subfolder_warning_shown']) ? $options['wpmu_subfolder_warning_shown'] : FALSE;
+      $this->yoasterror_shown                   = isset($options['yoasterror_shown']) ? $options['yoasterror_shown'] : FALSE;
       $this->ssl_success_message_shown          = isset($options['ssl_success_message_shown']) ? $options['ssl_success_message_shown'] : FALSE;
       $this->plugin_db_version                  = isset($options['plugin_db_version']) ? $options['plugin_db_version'] : "1.0";
       $this->debug                              = isset($options['debug']) ? $options['debug'] : FALSE;
-      $this->do_not_edit_htaccess               = isset($options['do_not_edit_htaccess']) ? $options['do_not_edit_htaccess'] : $this->do_not_edit_htaccess;
-
     }
 
     if (is_multisite()) {
-      //migrate options to networkwide option
-      $this->migrate_options_to_network();
+      //set rewrite_rule_per_site is deprecated, moving to the ssl_enabled_networkwide property.
       $network_options = get_site_option('rlrsssl_network_options');
-      if (isset($network_options)) {
-        $this->set_rewriterule_per_site  = isset($network_options['set_rewriterule_per_site']) ? $network_options['set_rewriterule_per_site'] : FALSE;
+      if (isset($network_options) ) {
+        $this->ssl_enabled_networkwide  = isset($network_options['ssl_enabled_networkwide']) ? $network_options['ssl_enabled_networkwide'] : FALSE;
+        $this->selected_networkwide_or_per_site  = isset($network_options['selected_networkwide_or_per_site']) ? $network_options['selected_networkwide_or_per_site'] : FALSE;
       }
     }
-  }
-
-
-  /**
-  *       @since 2.13
-  *
-  *       Fixes a multisite bug where networkwide options were saved in each blog locally.
-  *
-  **/
-
-  private function migrate_options_to_network() {
-    //for upgrade purposes, check if rewrite_rule_per_site exists for the main blog, and load that as the default one.
-    $main_blog_options = get_blog_option(BLOG_ID_CURRENT_SITE, "rlrsssl_options");
-    if (isset($main_blog_options) && isset($main_blog_options['set_rewriterule_per_site'])) {
-
-        $this->set_rewriterule_per_site = $main_blog_options['set_rewriterule_per_site'];
-
-        //now, remove this option from the array
-        unset($main_blog_options["set_rewriterule_per_site"]);
-
-        //save it back into the main site, so we on next check, this function won't run
-        update_blog_option(BLOG_ID_CURRENT_SITE, 'rlrsssl_options',$main_blog_options);
-
-        $this->save_options();
-    }
-  }
-
-  /**
-   * Checks if the site is multisite, and if the plugin was installed networkwide
-   * If not networkwide and multisite, the htaccess rewrite should be on a per site basis.
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  public function detect_if_rewrite_per_site($networkwide) {
-    if (is_multisite() && !$networkwide) {
-        $this->trace_log("per site activation");
-        $this->set_rewriterule_per_site = TRUE;
-    } else {
-        $this->trace_log("networkwide activated");
-        $this->set_rewriterule_per_site = FALSE;
-    }
-    $this->save_options();
-  }
-
-  /**
-   * Creates an array of all domains where the plugin is active AND ssl is active, only used for multisite.
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  public function build_domain_list() {
-    //create list of all activated  sites with ssl
-    $this->sites = array();
-    $sites = wp_get_sites();
-    if ($this->debug) $this->trace_log("building domain list for multiste...");
-    foreach ( $sites as $site ) {
-        switch_to_blog( $site[ 'blog_id' ] );
-        $plugin = $this->plugin_dir."/".$this->plugin_filename;
-        $options = get_option('rlrsssl_options');
-
-        $blog_has_ssl = FALSE;
-        if (isset($options)) {
-          $blog_has_ssl = isset($options['site_has_ssl']) ? $options['site_has_ssl'] : FALSE;
-        }
-
-        if (is_plugin_active($plugin) && $blog_has_ssl) {
-          if ($this->debug) $this->trace_log("adding: ".home_url());
-          $this->sites[] = home_url();
-        }
-        restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
-      }
-
-      $this->save_options();
-  }
-
-  /**
-   * Workaround to use add_action after plugin activation
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  public function activate($networkwide) {
-    $this->detect_if_rewrite_per_site($networkwide);
-    $this->save_options();
-    //add_option('really_simple_ssl_activated', 'activated' );
   }
 
   /**
@@ -384,24 +361,6 @@ public function wpconfig_ok(){
     $this->plugin_upgraded = false;
   }
 
-
-  /**
-   * check if the plugin was just activated
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  public function plugin_activated() {
-	if (get_option('really_simple_ssl_activated') == 'activated') {
-		delete_option( 'really_simple_ssl_activated' );
-		return true;
-	}
-	return false;
-  }
-
   /**
    * Log events during plugin execution
    *
@@ -414,7 +373,7 @@ public function wpconfig_ok(){
   public function trace_log($msg) {
     if (!$this->debug) return;
     $this->debug_log = $this->debug_log."<br>".$msg;
-    //$this->debug_log = strstr($this->debug_log,'"** Detecting configuration **"');
+    //$this->debug_log = strstr($this->debug_log,'** Detecting configuration **');
     error_log($msg);
   }
 
@@ -430,28 +389,10 @@ public function wpconfig_ok(){
   public function configure_ssl() {
       if (!current_user_can($this->capability)) return;
       $this->trace_log("** Configuring SSL **");
-      if ($this->site_has_ssl || $this->force_ssl_without_detection) {
-
-        //when a known ssl_type was found, test if the redirect works
-        if ($this->ssl_type != "NA")
-            $this->test_htaccess_redirect();
-
+      if ($this->site_has_ssl) {
         //in a configuration of loadbalancer without a set server variable https = 0, add code to wpconfig
         if ($this->do_wpconfig_loadbalancer_fix)
             $this->wpconfig_loadbalancer_fix();
-
-        if ($this->no_server_variable)
-            $this->wpconfig_server_variable_fix();
-
-        if ( class_exists( 'Jetpack' ) )
-            $this->wpconfig_jetpack();
-
-        $this->editHtaccess();
-
-        if ($this->wpconfig_siteurl_not_fixed)
-          $this->fix_siteurl_defines_in_wpconfig();
-
-        $this->set_siteurl_to_ssl();
       }
   }
 
@@ -465,6 +406,8 @@ public function wpconfig_ok(){
    */
 
   public function is_settings_page() {
+    if (!isset($_SERVER['QUERY_STRING'])) return false;
+
     parse_str($_SERVER['QUERY_STRING'], $params);
     if (array_key_exists("page", $params) && ($params["page"]=="rlrsssl_really_simple_ssl")) {
         return true;
@@ -487,6 +430,7 @@ public function wpconfig_ok(){
       if ( ! function_exists( 'get_plugins' ) )
           require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
       $plugin_folder = get_plugins( '/' . plugin_basename( dirname( __FILE__ ) ) );
+
       $this->plugin_version = $plugin_folder[$this->plugin_filename]['Version'];
   }
 
@@ -511,100 +455,6 @@ public function wpconfig_ok(){
         }
     } while( ($dir = realpath("$dir/..")) && ($i<$maxiterations) );
     return null;
-  }
-
-  /**
-   * remove https from defined siteurl and homeurl in the wpconfig, if present
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  public function remove_ssl_from_siteurl_in_wpconfig() {
-      $wpconfig_path = $this->find_wp_config_path();
-      if (!empty($wpconfig_path)) {
-        $wpconfig = file_get_contents($wpconfig_path);
-
-        $homeurl_pos = strpos($wpconfig, "define('WP_HOME','https://");
-        $siteurl_pos = strpos($wpconfig, "define('WP_SITEURL','https://");
-
-        if (($homeurl_pos !== false) || ($siteurl_pos !== false)) {
-          if (is_writable($wpconfig_path)) {
-            $search_array = array("define('WP_HOME','https://","define('WP_SITEURL','https://");
-            $ssl_array = array("define('WP_HOME','http://","define('WP_SITEURL','http://");
-            //now replace these urls
-            $wpconfig = str_replace ($search_array , $ssl_array , $wpconfig);
-            file_put_contents($wpconfig_path, $wpconfig);
-          } else {
-            $this->errors['wpconfig not writable'] = TRUE;
-          }
-        }
-
-      }
-  }
-
-
-
-  /**
-  *
-  *     Checks if the wp config contains any defined siteurl and homeurl
-  *
-  *
-  */
-
-  private function check_for_siteurl_in_wpconfig(){
-    $wpconfig_path = $this->find_wp_config_path();
-
-    if (empty($wpconfig_path)) return;
-
-    $wpconfig = file_get_contents($wpconfig_path);
-    $homeurl_pattern = '/(define\(\s*\'WP_HOME\'\s*,\s*\'http\:\/\/)/';
-    $siteurl_pattern = '/(define\(\s*\'WP_SITEURL\'\s*,\s*\'http\:\/\/)/';
-
-    $this->wpconfig_siteurl_not_fixed = FALSE;
-    if (preg_match($homeurl_pattern, $wpconfig) || preg_match($siteurl_pattern, $wpconfig) ) {
-        $this->wpconfig_siteurl_not_fixed = TRUE;
-        $this->trace_log("siteurl or home url defines found in wpconfig");
-    }
-  }
-
-
-  /**
-   * Runs only when siteurl or homeurl define was found in the wpconfig, with the check_for_siteurl_in_wpconfig function
-   * and only when wpconfig is writable.
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  private function fix_siteurl_defines_in_wpconfig() {
-      $wpconfig_path = $this->find_wp_config_path();
-
-      if (empty($wpconfig_path)) return;
-
-      $wpconfig = file_get_contents($wpconfig_path);
-      $homeurl_pattern = '/(define\(\s*\'WP_HOME\'\s*,\s*\'http\:\/\/)/';
-      $siteurl_pattern = '/(define\(\s*\'WP_SITEURL\'\s*,\s*\'http\:\/\/)/';
-
-      if (preg_match($homeurl_pattern, $wpconfig) || preg_match($siteurl_pattern, $wpconfig) ) {
-        if (is_writable($wpconfig_path)) {
-          $this->trace_log("wp config siteurl/homeurl edited.");
-          $wpconfig = preg_replace($homeurl_pattern, "define('WP_HOME','https://", $wpconfig);
-          $wpconfig = preg_replace($siteurl_pattern, "define('WP_SITEURL','https://", $wpconfig);
-          file_put_contents($wpconfig_path, $wpconfig);
-        }
-        else {
-          if ($this->debug) {$this->trace_log("not able to fix wpconfig siteurl/homeurl.");}
-          //only when siteurl or homeurl is defined in wpconfig, and wpconfig is not writable is there a possible issue because we cannot edit the defined urls.
-          $this->wpconfig_siteurl_not_fixed = TRUE;
-        }
-      } else {
-        if ($this->debug) {$this->trace_log("no siteurl/homeurl defines in wpconfig");}
-      }
   }
 
 
@@ -634,48 +484,6 @@ public function wpconfig_ok(){
     return false;
   }
 
-
-
-  /**
-   * When Jetpack is installed, add some code to wpconfig to make it ssl proof
-   *
-   * @since  2.13
-   *
-   * @access private
-   *
-   */
-
-  private function wpconfig_jetpack() {
-      $wpconfig_path = $this->find_wp_config_path();
-      if (empty($wpconfig_path)) return;
-      $wpconfig = file_get_contents($wpconfig_path);
-
-      if (strpos($wpconfig, "//Begin Really Simple SSL JetPack fix")===FALSE ) {
-        if (is_writable($wpconfig_path)) {
-          $rule  = "\n"."//Begin Really Simple SSL JetPack fix"."\n";
-          $rule .= 'define( "JETPACK_SIGNATURE__HTTPS_PORT", 80 );'."\n";
-          $rule .= "//END Really Simple SSL"."\n";
-
-          $insert_after = "<?php";
-          $pos = strpos($wpconfig, $insert_after);
-          if ($pos !== false) {
-              $wpconfig = substr_replace($wpconfig,$rule,$pos+1+strlen($insert_after),0);
-          }
-
-          file_put_contents($wpconfig_path, $wpconfig);
-          $this->trace_log("wp config jetpack fix inserted");
-        } else {
-          $this->trace_log("wp config jetpack fix FAILED");
-        }
-      } else {
-        $this->trace_log("wp config jetpack fix already in place");
-      }
-      $this->save_options();
-
-  }
-
-
-
   /**
    * In case of load balancer without server https on, add fix in wp-config
    *
@@ -697,6 +505,7 @@ public function wpconfig_ok(){
           $rule .= 'if (isset($_SERVER["HTTP_X_FORWARDED_PROTO"] ) && "https" == $_SERVER["HTTP_X_FORWARDED_PROTO"] ) {'."\n";
           $rule .= '$_SERVER["HTTPS"] = "on";'."\n";
           $rule .= "}"."\n";
+          $rule .= "define('FORCE_SSL_ADMIN', true);";
           $rule .= "//END Really Simple SSL"."\n";
 
           $insert_after = "<?php";
@@ -730,101 +539,20 @@ public function wpconfig_ok(){
   protected function is_multisite_subfolder_install() {
     if (!is_multisite()) return FALSE;
     //we check this manually, as the SUBDOMAIN_INSTALL constant of wordpress might return false for domain mapping configs
-    foreach ($this->sites as $site) {
-      if ($this->is_subfolder($site)) return TRUE;
+    $is_subfolder = FALSE;
+    $sites = wp_get_sites();
+    foreach ( $sites as $site ) {
+      switch_to_blog( $site[ 'blog_id' ] );
+      if ($this->is_subfolder(home_url())) {
+        $is_subfolder=TRUE;
+      }
+      restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
+      if ($is_subfolder) return true;
     }
 
-    return false;
+    return $is_subfolder;
   }
 
-    /**
-     * Getting Wordpress to recognize setup as being ssl when no https server variable is available
-     *
-     * @since  2.1
-     *
-     * @access public
-     *
-     */
-
-    public function wpconfig_server_variable_fix() {
-
-      $wpconfig_path = $this->find_wp_config_path();
-      if (empty($wpconfig_path)) return;
-      $wpconfig = file_get_contents($wpconfig_path);
-      //$this->wpconfig_server_variable_fix_failed = FALSE;
-
-      //check permissions
-      if (!is_writable($wpconfig_path)) {
-        if ($this->debug) $this->trace_log("wp-config.php not writable");
-        //$this->wpconfig_server_variable_fix_failed = TRUE;
-        return;
-      }
-
-      //when more than one blog, first remove what we have
-      if (is_multisite() && !$this->is_multisite_subfolder_install() && $this->set_rewriterule_per_site && count($this->sites)>1) {
-        $wpconfig = preg_replace("/\/\/Begin\s?Really\s?Simple\s?SSL.*?\/\/END\s?Really\s?Simple\s?SSL/s", "", $wpconfig);
-        $wpconfig = preg_replace("/\n+/","\n", $wpconfig);
-        file_put_contents($wpconfig_path, $wpconfig);
-      }
-
-      //now create new
-
-      //check if the fix is already there
-      if (strpos($wpconfig, "//Begin Really Simple SSL Server variable fix")!==FALSE ) {
-          if ($this->debug) {$this->trace_log("wp config server variable fix already in place, great!");}
-          return;
-      }
-
-      if ($this->debug) {$this->trace_log("Adding server variable to wpconfig");}
-      $rule = $this->get_server_variable_fix_code();
-
-      $insert_after = "<?php";
-      $pos = strpos($wpconfig, $insert_after);
-      if ($pos !== false) {
-          $wpconfig = substr_replace($wpconfig,$rule,$pos+1+strlen($insert_after),0);
-      }
-      file_put_contents($wpconfig_path, $wpconfig);
-      if ($this->debug) $this->trace_log("wp config server variable fix inserted");
-
-      $this->save_options();
-  }
-
-
-protected function get_server_variable_fix_code(){
-  if ($this->set_rewriterule_per_site && $this->is_multisite_subfolder_install()) {
-      if ($this->debug) $this->trace_log("per site activation on subfolder install, wp config server variable fix skipped");
-      return "";
-  }
-
-  if (is_multisite() && $this->set_rewriterule_per_site && count($this->sites)==0) {
-    if ($this->debug) $this->trace_log("no sites left with ssl, wp config server variable fix skipped");
-    return "";
-  }
-
-  if (is_multisite() && $this->set_rewriterule_per_site) {
-    $rule  = "\n"."//Begin Really Simple SSL Server variable fix"."\n";
-    foreach ($this->sites as $domain ) {
-        //remove http or https.
-        if ($this->debug) {$this->trace_log("getting server variable rule for:".$domain);}
-        $domain = preg_replace("/(http:\/\/|https:\/\/)/","",$domain);
-
-        //we excluded subfolders, so treat as domain
-        //check only for domain without www, as the www variant is found as well with the no www search.
-        $domain_no_www  = str_replace ( "www." , "" , $domain);
-
-        $rule .= 'if ( strpos($_SERVER["HTTP_HOST"], "'.$domain_no_www.'")!==FALSE ) {'."\n";
-        $rule .= '   $_SERVER["HTTPS"] = "on";'."\n";
-        $rule .= '}'."\n";
-    }
-    $rule .= "//END Really Simple SSL"."\n";
-  } else {
-    $rule  = "\n"."//Begin Really Simple SSL Server variable fix"."\n";
-    $rule .= '$_SERVER["HTTPS"] = "on";'."\n";
-    $rule .= "//END Really Simple SSL"."\n";
-  }
-
-  return $rule;
-}
 
   /**
    * Removing changes made to the wpconfig
@@ -854,63 +582,13 @@ protected function get_server_variable_fix_code(){
     file_put_contents($wpconfig_path, $wpconfig);
 
     //in multisite environment, with per site activation, re-add
-    if (is_multisite() && $this->set_rewriterule_per_site) {
+    if (is_multisite() && !$this->ssl_enabled_networkwide) {
 
       if ($this->do_wpconfig_loadbalancer_fix)
         $this->wpconfig_loadbalancer_fix();
 
-      if ($this->no_server_variable)
-        $this->wpconfig_server_variable_fix();
-
     }
 }
-
-  /**
-   * Changes the siteurl and homeurl to https
-   *
-   * @since  2.0
-   *
-   * @access public
-   *
-   */
-
-  public function set_siteurl_to_ssl() {
-      if ($this->debug) {$this->trace_log("converting siteurl and homeurl to https");}
-      $siteurl_ssl = str_replace ( "http://" , "https://" , get_option('siteurl'));
-      $homeurl_ssl = str_replace ( "http://" , "https://" , get_option('home'));
-      update_option('siteurl',$siteurl_ssl);
-      update_option('home',$homeurl_ssl);
-  }
-
-  /**
-   * On de-activation, siteurl and homeurl are reset to http
-   *
-   * @since  2.0
-   *
-   * @access public
-   *
-   */
-
-  public function remove_ssl_from_siteurl() {
-    if (is_multisite()) {
-      $sites = wp_get_sites();
-      foreach ( $sites as $site ) {
-          switch_to_blog( $site[ 'blog_id' ] );
-
-          $siteurl_no_ssl = str_replace ( "https://" , "http://" , get_option('siteurl'));
-          $homeurl_no_ssl = str_replace ( "https://" , "http://" , get_option('home'));
-          update_option('siteurl',$siteurl_no_ssl);
-          update_option('home',$homeurl_no_ssl);
-
-          restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
-        }
-    } else {
-      $siteurl_no_ssl = str_replace ( "https://" , "http://" , get_option('siteurl'));
-      $homeurl_no_ssl = str_replace ( "https://" , "http://" , get_option('home'));
-      update_option('siteurl',$siteurl_no_ssl);
-      update_option('home',$homeurl_no_ssl);
-    }
-  }
 
   /**
    * Save the plugin options
@@ -924,18 +602,17 @@ protected function get_server_variable_fix_code(){
   public function save_options() {
     //any options added here should also be added to function options_validate()
     $options = array(
-      'force_ssl_without_detection'       => $this->force_ssl_without_detection,
       'site_has_ssl'                      => $this->site_has_ssl,
-      'hsts'                              => $this->hsts,
-      'htaccess_warning_shown'            => $this->htaccess_warning_shown,
-      'wpmu_subfolder_warning_shown'      => $this->wpmu_subfolder_warning_shown,
+      'exclude_pages'                     => $this->exclude_pages,
+      'permanent_redirect'                => $this->permanent_redirect,
+      'yoasterror_shown'                  => $this->yoasterror_shown,
       'ssl_success_message_shown'         => $this->ssl_success_message_shown,
       'autoreplace_insecure_links'        => $this->autoreplace_insecure_links,
       'plugin_db_version'                 => $this->plugin_db_version,
       'debug'                             => $this->debug,
-      'do_not_edit_htaccess'              => $this->do_not_edit_htaccess,
       'ssl_enabled'                       => $this->ssl_enabled,
-      'javascript_redirect'               => $this->javascript_redirect,
+      'ssl_pages'                         => $this->ssl_pages,
+      'permanent_redirect'                => $this->permanent_redirect,
     );
 
     update_option('rlrsssl_options',$options);
@@ -943,8 +620,10 @@ protected function get_server_variable_fix_code(){
     //save multisite options
     if (is_multisite()) {
       $network_options = array(
-        'set_rewriterule_per_site'  => $this->set_rewriterule_per_site,
+          'ssl_enabled_networkwide'  => $this->ssl_enabled_networkwide,
+          'selected_networkwide_or_per_site'  => $this->selected_networkwide_or_per_site,
       );
+
       update_site_option('rlrsssl_network_options', $network_options);
     }
   }
@@ -972,52 +651,30 @@ protected function get_server_variable_fix_code(){
    *
    */
 
-  public function deactivate() {
-    $this->remove_ssl_from_siteurl();
-    $this->remove_ssl_from_siteurl_in_wpconfig();
-    $this->force_ssl_without_detection          = FALSE;
+  public function deactivate($networkwide) {
     $this->site_has_ssl                         = FALSE;
-    $this->hsts                                 = FALSE;
-    $this->htaccess_warning_shown               = FALSE;
-    $this->wpmu_subfolder_warning_shown         = FALSE;
     $this->ssl_success_message_shown            = FALSE;
     $this->autoreplace_insecure_links           = TRUE;
-    $this->do_not_edit_htaccess                 = FALSE;
-    $this->javascript_redirect                  = FALSE;
     $this->ssl_enabled                          = FALSE;
     $this->save_options();
 
-    //when on multisite, per site activation, recreate domain list for htaccess and wpconfig rewrite actions
-    if (is_multisite() && $this->set_rewriterule_per_site) $this->build_domain_list();
+    if ($networkwide) {
+      $this->ssl_enabled_networkwide              = FALSE;
+      $this->selected_networkwide_or_per_site     = FALSE;
+      $sites = wp_get_sites();
+      foreach ( $sites as $site ) {
+        switch_to_blog( $site[ 'blog_id' ] );
+        $this->ssl_enabled = false;
+        $this->save_options();
+        restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
+      }
+    }
 
     $this->remove_wpconfig_edit();
-    $this->removeHtaccessEdit();
   }
 
 
-  /**
-   * Checks if we are currently on ssl protocol, but extends standard wp with loadbalancer check.
-   *
-   * @since  2.0
-   *
-   * @access public
-   *
-   */
 
-  public function is_ssl_extended(){
-    if(!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https' || !empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] == 'on') {
-      $loadbalancer = TRUE;
-    }
-    else {
-      $loadbalancer = FALSE;
-    }
-
-    if (is_ssl() || $loadbalancer){
-      return true;
-    } else {
-      return false;
-    }
-  }
 
   /**
    * Checks for SSL by opening a test page in the plugin directory
@@ -1028,138 +685,74 @@ protected function get_server_variable_fix_code(){
    *
    */
 
-  public function detect_configuration() {
-    global $rsssl_url;
-    $this->trace_log("** Detecting configuration **"); //string used to start debug log, don't change.
-    $this->trace_log("plugin version: ".$this->plugin_version);
-    $old_ssl_setting = $this->site_has_ssl;
-    //plugin url: domain.com/wp-content/etc
-    $plugin_url = str_replace ( "http://" , "https://" , $this->plugin_url);
-    $testpage_url = trailingslashit($plugin_url)."ssl-test-page.php";
-    $this->trace_log("Opening testpage to check for ssl: ".$testpage_url);
-    $filecontents = $rsssl_url->get_contents($testpage_url);
+   public function detect_configuration() {
+     global $rsssl_url;
+     $this->trace_log("** Detecting configuration **");
+     $this->trace_log("plugin version: ".$this->plugin_version);
+     $old_ssl_setting = $this->site_has_ssl;
+     $filecontents = "";
 
-    if($rsssl_url->error_number!=0) {
-      $errormsg = $rsssl_url->get_curl_error($rsssl_url->error_number);
+     //if current page is on ssl, we can assume ssl is available, even when an errormsg was returned
+     if($this->is_ssl_extended()){
+       $this->trace_log("Already on SSL, start detecting configuration");
+       $this->site_has_ssl = TRUE;
+     } else {
+       //we're not on SSL, or no server vars were returned, so test with the test-page.
+       //plugin url: domain.com/wp-content/etc
+       $plugin_url = str_replace ( "http://" , "https://" , $this->plugin_url);
+       $testpage_url = trailingslashit($plugin_url)."ssl-test-page.php";
+       $this->trace_log("Opening testpage to check for ssl: ".$testpage_url);
+       $filecontents = $rsssl_url->get_contents($testpage_url);
 
-      //if current page is on ssl, we can assume ssl is available, even when an errormsg was returned
-      if($this->is_ssl_extended()){
-        $this->trace_log("We do have ssl, but the testpage loaded with an error: ".$errormsg);
-        $this->site_has_ssl = TRUE;
-      } else {
-        $this->site_has_ssl = FALSE;
-        $this->trace_log("No ssl detected. the ssl testpage returned an error: ".$errormsg);
-      }
-    } else {
-      $this->site_has_ssl = TRUE;
-      $this->trace_log("SSL test page loaded successfully");
-    }
+       if($rsssl_url->error_number!=0) {
+         $errormsg = $rsssl_url->get_curl_error($rsssl_url->error_number);
+         $this->site_has_ssl = FALSE;
+         $this->trace_log("No ssl detected. the ssl testpage returned an error: ".$errormsg);
+       } else {
+         $this->site_has_ssl = TRUE;
+         $this->trace_log("SSL test page loaded successfully");
+       }
+     }
 
-    if ($this->site_has_ssl) {
-      //check the type of ssl
-      if (strpos($filecontents, "#LOADBALANCER#") !== false) {
-        $this->ssl_type = "LOADBALANCER";
-        //check for is_ssl()
-        if ((strpos($filecontents, "#SERVER-HTTPS-ON#") === false) &&
-            (strpos($filecontents, "#SERVER-HTTPS-1#") === false) &&
-            (strpos($filecontents, "#SERVERPORT443#") === false)) {
-          //when Loadbalancer is detected, but is_ssl would return false, we should add some code to wp-config.php
-          if (!$this->wpconfig_has_fixes()) {
-            $this->do_wpconfig_loadbalancer_fix = TRUE;
-          }
-          if ($this->debug) {$this->trace_log("No server variable detected ");}
-        }
-      } elseif (strpos($filecontents, "#CDN#") !== false) {
-        $this->ssl_type = "CDN";
-      } elseif (strpos($filecontents, "#SERVER-HTTPS-ON#") !== false) {
-        $this->ssl_type = "SERVER-HTTPS-ON";
-      } elseif (strpos($filecontents, "#SERVER-HTTPS-1#") !== false) {
-        $this->ssl_type = "SERVER-HTTPS-1";
-      } elseif (strpos($filecontents, "#SERVERPORT443#") !== false) {
-        $this->ssl_type = "SERVERPORT443";
-      } elseif (strpos($filecontents, "#NO KNOWN SSL CONFIGURATION DETECTED#") !== false) {
-        //if we are here, SSL was detected, but without any known server variables set.
-        //So we can use this info to set a server variable ourselfes.
-        if (!$this->wpconfig_has_fixes()) {
-          $this->no_server_variable = TRUE;
-        }
-        $this->trace_log("No server variable detected ");
-        $this->ssl_type = "NA";
-      } else {
-        //no valid response, so set to NA
-        $this->ssl_type = "NA";
-      }
-	    $this->trace_log("ssl type: ".$this->ssl_type);
-    }
+     if ($this->site_has_ssl) {
+       //check the type of ssl, either by parsing the returned string, or by reading the server vars.
+       if ((strpos($filecontents, "#LOADBALANCER#") !== false) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && ($_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https'))) {
+         $this->ssl_type = "LOADBALANCER";
+         //check for is_ssl()
+         if (((strpos($filecontents, "#SERVER-HTTPS-ON#") === false) &&
+             (strpos($filecontents, "#SERVER-HTTPS-1#") === false) &&
+             (strpos($filecontents, "#SERVERPORT443#") === false)) || !is_ssl()) {
+           //when Loadbalancer is detected, but is_ssl would return false, we should add some code to wp-config.php
+           if (!$this->wpconfig_has_fixes()) {
+             $this->do_wpconfig_loadbalancer_fix = TRUE;
+           }
+           if ($this->debug) {$this->trace_log("No server variable detected ");}
+         }
+       } elseif ((strpos($filecontents, "#CDN#") !== false) || (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && ($_SERVER['HTTP_X_FORWARDED_SSL'] == 'on'))) {
+         $this->ssl_type = "CDN";
+       } elseif ((strpos($filecontents, "#SERVER-HTTPS-ON#") !== false) || (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == 'on')) {
+         $this->ssl_type = "SERVER-HTTPS-ON";
+       } elseif ((strpos($filecontents, "#SERVER-HTTPS-1#") !== false) || (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == '1')) {
+         $this->ssl_type = "SERVER-HTTPS-1";
+       } elseif ((strpos($filecontents, "#SERVERPORT443#") !== false) || (isset($_SERVER['SERVER_PORT']) && ( '443' == $_SERVER['SERVER_PORT'] ))) {
+         $this->ssl_type = "SERVERPORT443";
+       } elseif ((strpos($filecontents, "#NO KNOWN SSL CONFIGURATION DETECTED#") !== false)) {
+         //if we are here, SSL was detected, but without any known server variables set.
+         //So we can use this info to set a server variable ourselfes.
+         if (!$this->wpconfig_has_fixes()) {
+           $this->no_server_variable = TRUE;
+         }
+         $this->trace_log("No server variable detected ");
+         $this->ssl_type = "NA";
+       } else {
+         //no valid response, so set to NA
+         $this->ssl_type = "NA";
+       }
+ 	    $this->trace_log("ssl type: ".$this->ssl_type);
+     }
 
-    $force_ssl_without_detection = $this->force_ssl_without_detection ? "TRUE" : "FALSE";
-    $this->trace_log("--- force ssl: ".$force_ssl_without_detection);
-
-    if ($old_ssl_setting != $this->site_has_ssl) {
-      	//value has changed, note this so we can flush the cache later.
-		    $this->trace_log("ssl setting changed...");
-      	add_option('really_simple_ssl_settings_changed', 'settings_changed' );
-    }
-
-    $this->check_for_siteurl_in_wpconfig();
-
-    $this->save_options();
-  }
-
-  /**
-   * Test if the htaccess redirect will work
-   * This way, no redirect loops should occur.
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  public function test_htaccess_redirect() {
-    global $rsssl_url;
-    if (!current_user_can($this->capability)) return;
-	  if ($this->debug) {$this->trace_log("testing htaccess rules...");}
-    $filecontents = "";
-    $plugin_url = str_replace ( "http://" , "https://" , $this->plugin_url);
-    $testpage_url = $plugin_url."testssl/";
-    switch ($this->ssl_type) {
-    case "LOADBALANCER":
-        $testpage_url .= "loadbalancer";
-        break;
-    case "CDN":
-        $testpage_url .= "cdn";
-        break;
-    case "SERVER-HTTPS-ON":
-        $testpage_url .= "serverhttpson";
-        break;
-    case "SERVER-HTTPS-1":
-        $testpage_url .= "serverhttps1";
-        break;
-    case "SERVERPORT443":
-        $testpage_url .= "serverport443";
-        break;
-    }
-
-    $testpage_url .= ("/ssl-test-page.html");
-
-    $filecontents = $rsssl_url->get_contents($testpage_url);
-    if (($rsssl_url->error_number==0) && (strpos($filecontents, "#SSL TEST PAGE#") !== false)) {
-      $this->htaccess_test_success = TRUE;
-		  if ($this->debug) {$this->trace_log("htaccess rules tested successfully.");}
-    } else {
-      //.htaccess rewrite rule seems to be giving problems.
-      $this->htaccess_test_success = FALSE;
-
-      if ($rsssl_url->error_number!=0) {
-        $this->trace_log("htaccess rules test failed with error: ".$rsssl_url->get_curl_error($rsssl_url->error_number));
-      } else {
-        $this->trace_log("htaccess test rules failed.");
-      }
-
-    }
-
-  }
+     $this->save_options();
+   }
 
   /**
    * Get the url of this plugin
@@ -1198,212 +791,30 @@ protected function get_server_variable_fix_code(){
 
 
   /**
-   * removes the added redirect to https rules to the .htaccess file.
-   *
-   * @since  2.0
-   *
-   * @access public
-   *
-   */
-
-  public function removeHtaccessEdit() {
-      if(file_exists($this->ABSpath.".htaccess") && is_writable($this->ABSpath.".htaccess")){
-        $htaccess = file_get_contents($this->ABSpath.".htaccess");
-
-
-        //if multisite, per site activation and more than one blog remaining on ssl, remove condition for this site only
-        //the domain list has been rebuilt already, so current site is already removed.
-        if (is_multisite() && $this->set_rewriterule_per_site && count($this->sites)>0) {
-          //remove http or https.
-          $domain = preg_replace("/(http:\/\/|https:\/\/)/","",home_url());
-          $pattern = "/#wpmu\srewritecond\s?".preg_quote($domain, "/")."\n.*?#end\swpmu\srewritecond\s?".preg_quote($domain, "/")."\n/s";
-
-          //only remove if the pattern is there at all
-          if (preg_match($pattern, $htaccess)) $htaccess = preg_replace($pattern, "", $htaccess);
-          //now replace any remaining "or" on the last condition.
-          $pattern = "/(\[OR\])(?!.*(\[OR\]|#start).*?RewriteRule)/s";
-          $htaccess = preg_replace($pattern, "", $htaccess,1);
-
-        } else {
-          // remove everything
-          $pattern = "/#\s?BEGIN\s?rlrssslReallySimpleSSL.*?#\s?END\s?rlrssslReallySimpleSSL/s";
-          //only remove if the pattern is there at all
-          if (preg_match($pattern, $htaccess)) $htaccess = preg_replace($pattern, "", $htaccess);
-
-        }
-
-        $htaccess = preg_replace("/\n+/","\n", $htaccess);
-        file_put_contents($this->ABSpath.".htaccess", $htaccess);
-        //THIS site is not redirected in htaccess anymore.
-        $this->ssl_redirect_set_in_htaccess =  FALSE;
-        $this->save_options();
-      } else {
-        $this->errors['HTACCESS_NOT_WRITABLE'] = TRUE;
-        if ($this->debug) $this->trace_log("could not remove rules from htaccess, file not writable");
-      }
-  }
-
-  public function contains_previous_version($htaccess) {
-    $versionpos = strpos($htaccess, "rsssl_version");
-    if ($versionpos===false) {
-      //no version found, so old version
-      return true;
-    } else {
-      //find closing marker of version
-      $close = strpos($htaccess, "]", $versionpos);
-      $version = substr($htaccess, $versionpos+14, $close-($versionpos+14));
-      if ($version != $this->plugin_version) {
-        return true;
-      }
-      else {
-        return false;
-      }
-    }
-  }
-
-  public function contains_rsssl_rules($htaccess) {
-    preg_match("/BEGIN rlrssslReallySimpleSSL/", $htaccess, $check);
-    if(count($check) === 0){
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  /**
-   * Checks if the hsts rule is already in the htaccess file
-   * Set the hsts variable in the db accordingly
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  public function contains_hsts($htaccess) {
-    preg_match("/Header always set Strict-Transport-Security/", $htaccess, $check);
-    if(count($check) === 0){
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  /**
-   * Adds redirect to https rules to the .htaccess file.
-   *
-   * @since  2.0
-   *
-   * @access public
-   *
-   */
-
-  public function editHtaccess(){
-      if (!current_user_can($this->capability)) return;
-      //check if htacces exists and  if htaccess is writable
-      //update htaccess to redirect to ssl and set redirect_set_in_htaccess
-      $this->ssl_redirect_set_in_htaccess =  FALSE;
-
-      if($this->debug) $this->trace_log("checking if .htaccess can or should be edited...");
-
-      //does it exist?
-      if (!file_exists($this->ABSpath.".htaccess")) {
-        $this->trace_log(".htaccess not found.");
-        return;
-      }
-
-      //check if editing is blocked.
-      if ($this->do_not_edit_htaccess) {
-        $this->trace_log("Edit of .htaccess blocked by setting or define 'do not edit htaccess' in really simple ssl.");
-        return;
-      }
-
-      //if subfolder multisite, per site activated, exit.
-      if (is_multisite() && $this->set_rewriterule_per_site && $this->is_multisite_subfolder_install()) {
-          $this->trace_log("per site activation on subfolder install, adding of htaccess rules skipped");
-          $this->ssl_redirect_set_in_htaccess = false;
-          $this->javascript_redirect = true;
-          return;
-      }
-
-      $htaccess = file_get_contents($this->ABSpath.".htaccess");
-      if(!$this->contains_rsssl_rules($htaccess)){
-        //really simple ssl rules not in the file, so add if writable.
-        if ($this->debug) {$this->trace_log("no rules there, adding rules...");}
-
-        if (!is_writable($this->ABSpath.".htaccess")) {
-          //set the javascript redirect as fallback, because .htaccess couldn't be edited.
-          $this->javascript_redirect = true;
-          $this->trace_log(".htaccess not writable.");
-          $this->errors["NO_REDIRECT_IN_HTACCESS"] = true;
-          return;
-        }
-
-        $rules = $this->get_redirect_rules();
-
-        //insert rules before wordpress part.
-        $wptag = "# BEGIN WordPress";
-        if (strpos($htaccess, $wptag)!==false) {
-            $htaccess = str_replace($wptag, $rules.$wptag, $htaccess);
-        } else {
-            $htaccess = $htaccess.$rules;
-        }
-
-        file_put_contents($this->ABSpath.".htaccess", $htaccess);
-
-    } elseif ((is_multisite() && $this->set_rewriterule_per_site) || ($this->hsts!=$this->contains_hsts($htaccess))) {
-        /*
-            Remove all rules and add new IF
-            //disabled changes for version upgrade. , $this->contains_previous_version($htaccess) ||
-            or the hsts option has changed, so we need to edit the htaccess anyway.
-            or rewrite per site (if a site is added or removed on per site activated
-            mulsite we need to rewrite even if the rules are already there.)
-        */
-
-        if ($this->debug) {$this->trace_log("per site activation or hsts option change, updating htaccess...");}
-
-        if (!is_writable($this->ABSpath.".htaccess")) {
-          if($this->debug) $this->trace_log(".htaccess not writable.");
-          return;
-        }
-
-	      $htaccess = preg_replace("/#\s?BEGIN\s?rlrssslReallySimpleSSL.*?#\s?END\s?rlrssslReallySimpleSSL/s", "", $htaccess);
-        $htaccess = preg_replace("/\n+/","\n", $htaccess);
-
-        $rules = $this->get_redirect_rules();
-        //insert rules before wordpress part.
-        $wptag = "# BEGIN WordPress";
-        if (strpos($htaccess, $wptag)!==false) {
-            $htaccess = str_replace($wptag, $rules.$wptag, $htaccess);
-        } else {
-            $htaccess = $htaccess.$rules;
-        }
-        file_put_contents($this->ABSpath.".htaccess", $htaccess);
-      } else {
-        if ($this->debug) {$this->trace_log("rules already added in .htaccess.");}
-        $this->ssl_redirect_set_in_htaccess =  TRUE;
-      }
-  }
-
-  /**
   *
   *  @since 2.2
-  *  Check if the mixed content fixer is functioning on the front end, by scanning the source of the homepage for the fixer comment.
+  *  Check if the mixed content fixer is functioning on the front end, by scanning the source of the one of the ssl pages for the fixer comment.
   *
   */
 
   public function mixed_content_fixer_detected(){
     global $rsssl_url;
-    //check if the mixed content fixer is active
-    $web_source = $rsssl_url->get_contents(home_url());
-    if ($rsssl_url->error_number!=0 || (strpos($web_source, "<!-- rs-ssl -->") === false)) {
-      if ($rsssl_url->error_number!=0) $this->mixed_content_fixer_status = $rsssl_url->get_curl_error($rsssl_url->error_number);
-      $this->trace_log("Check for Mixed Content detection failed");
-      return false;
-    } else {
-      $this->trace_log("Mixed content was successfully detected on the front end.");
-      return true;
+    if (!empty($this->ssl_pages)) {
+        $ssl_page = reset($this->ssl_pages);
+        $url = get_permalink($ssl_page);
+        //check if the mixed content fixer is active
+
+        $web_source = $rsssl_url->get_contents($url);
+        if ($rsssl_url->error_number!=0 || (strpos($web_source, "<!-- Really Simple SSL mixed content fixer active -->") === false)) {
+          if ($rsssl_url->error_number!=0) $this->mixed_content_fixer_status = $rsssl_url->get_curl_error($rsssl_url->error_number);
+          $this->trace_log("Check for Mixed Content detection failed");
+          return false;
+        } else {
+          $this->trace_log("Mixed content fixer was successfully detected on the front end.");
+          return true;
+        }
     }
+
   }
 
   /**
@@ -1418,108 +829,14 @@ protected function get_server_variable_fix_code(){
    */
 
   private function is_subfolder($domain) {
+
       //remove slashes of the http(s)
       $domain = preg_replace("/(http:\/\/|https:\/\/)/","",$domain);
       if (strpos($domain,"/")!==FALSE) {
         return true;
       }
-
       return false;
   }
-
-  /**
-   * Create redirect rules for the .htaccess.
-   *
-   * @since  2.1
-   *
-   * @access public
-   *
-   */
-
-  public function get_redirect_rules($manual=false) {
-      if (!current_user_can($this->capability)) return;
-
-      //only add the redirect rules when a known type of ssl was detected. Otherwise, we use https.
-      $rule="\n";
-
-      $rule .= "# BEGIN rlrssslReallySimpleSSL rsssl_version[".$this->plugin_version."]\n";
-
-      //if the htaccess test was successfull, and we know the redirectype, edit
-      if ($manual || ($this->htaccess_test_success && ($this->ssl_type != "NA"))) {
-        //set redirect_set_in_htaccess to true, because we are now making a redirect rule.
-        if (!$manual) {
-          $this->ssl_redirect_set_in_htaccess = TRUE;
-        }
-
-        $rule .= "<IfModule mod_rewrite.c>"."\n";
-        $rule .= "RewriteEngine on"."\n";
-
-        //select rewrite condition based on detected type of ssl
-        if ($this->ssl_type == "SERVER-HTTPS-ON") {
-            $rule .= "RewriteCond %{HTTPS} !=on [NC]"."\n";
-        } elseif ($this->ssl_type == "SERVER-HTTPS-1") {
-            $rule .= "RewriteCond %{HTTPS} !=1"."\n";
-        } elseif ($this->ssl_type == "SERVERPORT443") {
-           $rule .= "RewriteCond %{SERVER_PORT} !443"."\n";
-        } elseif ($this->ssl_type == "LOADBALANCER") {
-            $rule .="RewriteCond %{HTTP:X-Forwarded-Proto} !https"."\n";
-        } elseif ($this->ssl_type == "CDN") {
-            $rule .= "RewriteCond %{HTTP:X-Forwarded-SSL} !on"."\n";
-        }
-
-        //if multisite, and NOT subfolder install (checked for in the detec_config function)
-        //, add a condition so it only applies to sites where plugin is activated
-        if (is_multisite() && $this->set_rewriterule_per_site) {
-          //disable hsts, because other sites on the network would be forced on ssl as well
-          $this->hsts = FALSE;
-          $this->trace_log("multisite, per site activation");
-
-          foreach ($this->sites as $domain ) {
-              $this->trace_log("adding condition for:".$domain);
-
-              //remove http or https.
-              $domain = preg_replace("/(http:\/\/|https:\/\/)/","",$domain);
-              //We excluded subfolders, so treat as domain
-
-              $domain_no_www  = str_replace ( "www." , "" , $domain);
-              $domain_yes_www = "www.".$domain_no_www;
-
-              $rule .= "#wpmu rewritecond ".$domain."\n";
-              $rule .= "RewriteCond %{HTTP_HOST} ^".preg_quote($domain_no_www, "/")." [OR]"."\n";
-              $rule .= "RewriteCond %{HTTP_HOST} ^".preg_quote($domain_yes_www, "/")." [OR]"."\n";
-              $rule .= "#end wpmu rewritecond ".$domain."\n";
-
-          }
-
-          //now remove last [OR] if at least on one site the plugin was activated, so we have at lease one condition
-          if (count($this->sites)>0) {
-            $rule = strrev(implode("", explode(strrev("[OR]"), strrev($rule), 2)));
-          }
-        } else {
-          if ($this->debug) {$this->trace_log("single site or networkwide activation");}
-        }
-        $rule .= "RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]"."\n";
-
-        //$rule .= "RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]"."\n";
-        $rule .= "</IfModule>"."\n";
-      } else {
-        $this->ssl_redirect_set_in_htaccess = FALSE;
-      }
-
-      if ($this->hsts && !is_multisite()) {
-        //owasp security best practice https://www.owasp.org/index.php/HTTP_Strict_Transport_Security
-        $rule .= "<IfModule mod_headers.c>"."\n";
-        $rule .= "Header always set Strict-Transport-Security 'max-age=31536000' env=HTTPS"."\n";
-        $rule .= "</IfModule>"."\n";
-      }
-
-      $rule .= "# END rlrssslReallySimpleSSL"."\n";
-
-      $rule = preg_replace("/\n+/","\n", $rule);
-      return $rule;
-    }
-
-
 
 /**
 *     Show warning when wpconfig could not be fixed
@@ -1532,13 +849,7 @@ public function show_notice_wpconfig_needs_fixes(){ ?>
   <div id="message" class="error fade notice">
   <h1><?php echo __("System detection encountered issues","really-simple-ssl");?></h1>
 
-  <?php if ($this->wpconfig_siteurl_not_fixed) { ?>
-    <p>
-      <?php echo __("A definition of a siteurl or homeurl was detected in your wp-config.php, but the file is not writable.","really-simple-ssl");?>
-    </p>
-    <p><?php echo __("Set your wp-config.php to writable and reload this page.", "really-simple-ssl");?></p>
-  <?php }
-  if ($this->do_wpconfig_loadbalancer_fix) { ?>
+  <?php if ($this->do_wpconfig_loadbalancer_fix) { ?>
       <p><?php echo __("Your wp-config.php has to be edited, but is not writable.","really-simple-ssl");?></p>
       <p><?php echo __("Because your site is behind a loadbalancer and is_ssl() returns false, you should add the following line of code to your wp-config.php.","really-simple-ssl");?>
 
@@ -1554,13 +865,10 @@ public function show_notice_wpconfig_needs_fixes(){ ?>
     <?php
   }
 
-  if ( $this->no_server_variable ) {
-    ?>
-      <p><?php echo __('Because your server does not pass a variable with which Wordpress can detect SSL, Wordpress may create redirect loops on SSL.','really-simple-ssl');?></p>
-      <p><?php echo __("Set your wp-config.php to writable and reload this page.", "really-simple-ssl");?></p>
-    <?php
-  }
-  ?>
+  if ($this->no_server_variable) { ?>
+      <p><?php echo __('Because your server does not pass a variable with which Wordpress can detect SSL, Wordpress would create redirect loops on SSL.','really-simple-ssl');?></p>
+      <p><?php echo __("Consider moving your entire site to SSL with the Really Simple SSL plugin in the Wordpress repository.", "really-simple-ssl");?></p>
+<?php } ?>
 
 </div>
 <?php
@@ -1578,21 +886,6 @@ public function show_notice_wpconfig_needs_fixes(){ ?>
 
 public function show_notices()
 {
-  /*
-      show a notice when the .htaccess file does not contain redirect rules
-  */
-
-  if (!$this->htaccess_warning_shown && isset($this->errors["NO_REDIRECT_IN_HTACCESS"])) {
-        add_action('admin_print_footer_scripts', array($this, 'insert_dismiss_htaccess'));
-        ?>
-        <div id="message" class="error fade notice is-dismissible rlrsssl-htaccess">
-          <p>
-            <?php echo __("Your .htaccess did not contain the Really Simple SSL redirect to https, and could not be written, so a javascript redirect is currently added. For SEO purposes it is advisable to use .htaccess redirects. Set the .htaccess file to writable and visit the settings page to write it again, or copy the code lines from the settings page.","really-simple-ssl");?>
-            <a href="options-general.php?page=rlrsssl_really_simple_ssl">Settings</a>
-          </p>
-        </div>
-        <?php
-  }
 
   if (isset($this->errors["DEACTIVATE_FILE_NOT_RENAMED"])) {
     ?>
@@ -1609,36 +902,6 @@ public function show_notices()
   }
 
   /*
-    encourage network wide for subfolder install.
-  */
-
-  if (is_multisite() && $this->set_rewriterule_per_site && $this->is_multisite_subfolder_install()) {
-    //with no server variables, the website could get into redirect loops.
-    if ($this->no_server_variable) {
-      ?>
-        <div id="message" class="error fade notice">
-          <p>
-            <?php _e('You run a Multisite installation with subfolders, which prevents this plugin from fixing your missing server variable in the wp-config.php.','really-simple-ssl');?>
-            <?php _e('Because the $_SERVER["HTTPS"] variable is not set, your website may experience redirect loops.','really-simple-ssl');?>
-            <?php _e('Activate networkwide to fix this.','really-simple-ssl');?>
-          </p>
-        </div>
-      <?php
-    } elseif (!$this->wpmu_subfolder_warning_shown) {
-      //otherwise, the htaccess cannot be fixed.
-      add_action('admin_print_footer_scripts', array($this, 'insert_dismiss_wpmu_subfolder_warning'));
-    ?>
-      <div id="message" class="error fade notice is-dismissible rlrsssl-wpmu-subfolder-warning">
-        <p>
-          <?php _e('You run a Multisite installation with subfolders, which prevents this plugin from handling the .htaccess.','really-simple-ssl');?>
-          <?php _e('Because the domain is the same on all sites, it would be better to activate SSL on all your sites.','really-simple-ssl');?>
-        </p>
-      </div>
-    <?php
-    }
-  }
-
-  /*
       SSL success message
   */
 
@@ -1647,14 +910,14 @@ public function show_notices()
         ?>
         <div id="message" class="updated fade notice is-dismissible rlrsssl-success">
           <p>
-            <?php echo __("SSL was detected and successfully activated!","really-simple-ssl");?>
+            <?php echo __("SSL activated!","really-simple-ssl");?>
           </p>
         </div>
         <?php
   }
 
   //some notices for ssl situations
-  if ($this->site_has_ssl || $this->force_ssl_without_detection) {
+  if ($this->site_has_ssl) {
       if (sizeof($this->plugin_conflict)>0) {
         //pre Woocommerce 2.5
         if (isset($this->plugin_conflict["WOOCOMMERCE_FORCEHTTP"]) && $this->plugin_conflict["WOOCOMMERCE_FORCEHTTP"] && isset($this->plugin_conflict["WOOCOMMERCE_FORCESSL"]) && $this->plugin_conflict["WOOCOMMERCE_FORCESSL"]) {
@@ -1667,9 +930,10 @@ public function show_notices()
           <?php
         }
 
-        if (isset($this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"]) && $this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"]) {
+        if (!$this->yoasterror_shown && isset($this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"]) && $this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"]) {
+            add_action('admin_print_footer_scripts', array($this, 'insert_dismiss_yoasterror'));
             ?>
-            <div id="message" class="error fade notice"><p>
+            <div id="message" class="error fade notice is-dismissible rlrsssl-yoast"><p>
             <?php _e("Really Simple SSL has a conflict with another plugin.","really-simple-ssl");?><br>
             <?php _e("The force rewrite titles option in Yoast SEO prevents Really Simple SSL plugin from fixing mixed content.","really-simple-ssl");?><br>
             <a href="admin.php?page=wpseo_titles"><?php _e("Show me this setting","really-simple-ssl");?></a>
@@ -1709,33 +973,6 @@ public function insert_dismiss_success() {
   </script>
   <?php
 }
-/**
- * Insert some ajax script to dismis the htaccess failed fail message, and stop nagging about it
- *
- * @since  2.0
- *
- * @access public
- *
- */
-
-public function insert_dismiss_htaccess() {
-  $ajax_nonce = wp_create_nonce( "really-simple-ssl" );
-  ?>
-  <script type='text/javascript'>
-    jQuery(document).ready(function($) {
-        $(".rlrsssl-htaccess.notice.is-dismissible").on("click", ".notice-dismiss", function(event){
-              var data = {
-                'action': 'dismiss_htaccess_warning',
-                'security': '<?php echo $ajax_nonce; ?>'
-              };
-              $.post(ajaxurl, data, function(response) {
-
-              });
-          });
-    });
-  </script>
-  <?php
-}
 
 /**
  * Insert some ajax script to dismis the ssl fail message, and stop nagging about it
@@ -1746,14 +983,14 @@ public function insert_dismiss_htaccess() {
  *
  */
 
-public function insert_dismiss_wpmu_subfolder_warning() {
+public function insert_dismiss_yoasterror() {
   $ajax_nonce = wp_create_nonce( "really-simple-ssl" );
   ?>
   <script type='text/javascript'>
     jQuery(document).ready(function($) {
-        $(".rlrsssl-wpmu-subfolder-warning.notice.is-dismissible").on("click", ".notice-dismiss", function(event){
+        $(".rlrsssl-yoast.notice.is-dismissible").on("click", ".notice-dismiss", function(event){
               var data = {
-                'action': 'dismiss_wpmu_subfolder_warning',
+                'action': 'dismiss_yoasterror',
                 'security': '<?php echo $ajax_nonce; ?>'
               };
               $.post(ajaxurl, data, function(response) {
@@ -1775,27 +1012,9 @@ public function insert_dismiss_wpmu_subfolder_warning() {
    */
 
 public function dismiss_success_message_callback() {
-  //nonce check fails if url is changed to ssl. 
-  //check_ajax_referer( 'really-simple-ssl-dismiss', 'security' );
   $this->ssl_success_message_shown = TRUE;
   $this->save_options();
   wp_die();
-}
-
-/**
- * Process the ajax dismissal of the htaccess message.
- *
- * @since  2.1
- *
- * @access public
- *
- */
-
-public function dismiss_htaccess_warning_callback() {
-  check_ajax_referer( 'really-simple-ssl', 'security' );
-  $this->htaccess_warning_shown = TRUE;
-  $this->save_options();
-  wp_die(); // this is required to terminate immediately and return a proper response
 }
 
 /**
@@ -1807,36 +1026,35 @@ public function dismiss_htaccess_warning_callback() {
  *
  */
 
-public function dismiss_wpmu_subfolder_warning_callback() {
-  global $wpdb;
+public function dismiss_yoasterror_callback() {
   check_ajax_referer( 'really-simple-ssl', 'security' );
-  $this->wpmu_subfolder_warning_shown = TRUE;
+  $this->yoasterror_shown = TRUE;
   $this->save_options();
   wp_die(); // this is required to terminate immediately and return a proper response
 }
 
 
-  /**
-   * Adds the admin options page
-   *
-   * @since  2.0
-   *
-   * @access public
-   *
-   */
+/**
+ * Adds the admin options page
+ *
+ * @since  2.0
+ *
+ * @access public
+ *
+ */
 
 public function add_settings_page() {
-  if (!current_user_can($this->capability)) return;
-  $admin_page = add_options_page(
-    __("SSL settings","really-simple-ssl"), //link title
-    __("SSL","really-simple-ssl"), //page title
-    $this->capability, //capability
-    'rlrsssl_really_simple_ssl', //url
-    array($this,'settings_page')); //function
+ if (!current_user_can($this->capability)) return;
+ global $rsssl_admin_page;
+ $rsssl_admin_page = add_options_page(
+   __("SSL settings","really-simple-ssl"), //link title
+   __("SSL","really-simple-ssl"), //page title
+   $this->capability, //capability
+   'rlrsssl_really_simple_ssl', //url
+   array($this,'settings_page')); //function
 
-    // Adds my_help_tab when my_admin_page loads
-    add_action('load-'.$admin_page, array($this,'admin_add_help_tab'));
-
+   // Adds my_help_tab when my_admin_page loads
+   add_action('load-'.$rsssl_admin_page, array($this,'admin_add_help_tab'));
 }
 
   /**
@@ -1902,11 +1120,9 @@ public function settings_page() {
 
   switch ( $tab ){
       case 'configuration' :
-
       /*
               First tab, configuration
       */
-
       ?>
         <h2><?php echo __("Detected setup","really-simple-ssl");?></h2>
         <table class="really-simple-ssl-table">
@@ -1923,9 +1139,24 @@ public function settings_page() {
                 ?>
               </td><td></td>
           </tr>
+          <tr>
+            <?php
+
+            ?>
+            <td><?php echo !empty($this->ssl_pages) ? $this->img("success") : $this->img("error");?></td>
+            <td><?php
+                  if (empty($this->ssl_pages)) {
+                    _e("You do not have any pages with SSL enabled yet. Start adding them on the Add SSL pages tab","really-simple-ssl")."&nbsp;";
+                  } else {
+                    _e("Great! you already have some pages on SSL","really-simple-ssl")."&nbsp;";
+                  }
+                ?>
+              </td><td></td>
+          </tr>
           <?php }
           /* check if the mixed content fixer is working */
-          if ($this->ssl_enabled && $this->autoreplace_insecure_links && $this->site_has_ssl) { ?>
+
+          if ($this->ssl_enabled && !empty($this->ssl_pages) && $this->autoreplace_insecure_links && $this->site_has_ssl) { ?>
           <tr>
             <td><?php echo $this->mixed_content_fixer_detected() ? $this->img("success") : $this->img("error");?></td>
             <td><?php
@@ -1935,96 +1166,29 @@ public function settings_page() {
                     _e("The mixed content is activated, but the frontpage could not be loaded for verification. The following error was returned: ","really-simple-ssl")."&nbsp;";
                     echo $this->mixed_content_fixer_status;
                   } else {
-                    _e("The mixed content is activated, but was not detected on the frontpage. Please check if you have mixed content, which could indicate a plugin conflict.","really-simple-ssl")."&nbsp;";
+                    _e('The mixed content fixer is activated, but was not detected on the frontpage. Please follow these steps to check if the mixed content fixer is working.',"really-simple-ssl").":&nbsp;";
+                    echo '&nbsp;<a target="_blank" href="https://www.really-simple-ssl.com/knowledge-base/how-to-check-if-the-mixed-content-fixer-is-active/">';
+                    _e('Instructions', 'really-simple-ssl');
+                    echo '</a>';
                   }
                 ?>
               </td><td></td>
           </tr>
           <?php } ?>
           <tr>
-            <td><?php echo $this->site_has_ssl ? $this->img("success") : $this->img("error");?></td>
+            <td><?php echo ($this->site_has_ssl && $this->wpconfig_ok()) ? $this->img("success") : $this->img("error");?></td>
             <td><?php
                     if ( !$this->wpconfig_ok())  {
                       _e("Failed activating SSL","really-simple-ssl")."&nbsp;";
                     } elseif (!$this->site_has_ssl) {
-                      if (!$this->force_ssl_without_detection)
-                         _e("No SSL detected.","really-simple-ssl")."&nbsp;";
-                      else
-                         _e("No SSL detected, but SSL is forced.","really-simple-ssl")."&nbsp;";
+                      _e("No SSL detected.","really-simple-ssl")."&nbsp;";
                     }
                     else {
-                      //ssl detected, no problems!
                       _e("An SSL certificate was detected on your site. ","really-simple-ssl");
                     }
                 ?>
               </td><td></td>
           </tr>
-          <?php if($this->ssl_enabled && ($this->site_has_ssl || $this->force_ssl_without_detection)) { ?>
-          <tr>
-            <td>
-              <?php echo ($this->ssl_redirect_set_in_htaccess || $this->do_not_edit_htaccess) ? $this->img("success") :$this->img("warning");?>
-            </td>
-            <td>
-            <?php
-                if($this->ssl_redirect_set_in_htaccess) {
-                 _e("https redirect set in .htaccess","really-simple-ssl");
-              } elseif ($this->do_not_edit_htaccess) {
-                 _e("Editing of .htaccess is blocked in Really Simple ssl settings, so you're in control of the .htaccess file.","really-simple-ssl");
-              } else {
-                 if (!is_writable($this->ABSpath.".htaccess")) {
-                   _e("Https redirect was set in javascript because the .htaccess was not writable. Set manually if you want to redirect in .htaccess.","really-simple-ssl");
-                 } elseif($this->set_rewriterule_per_site && $this->is_multisite_subfolder_install()) {
-                   _e("Https redirect was set in javascript because you have activated per site on a multiste subfolder install. Install networkwide to set the .htaccess redirect.","really-simple-ssl");
-                 } else {
-                   _e("Https redirect was set in javascript because the htaccess redirect rule could not be verified. Set manually if you want to redirect in .htaccess.","really-simple-ssl");
-                }
-                 if ($this->ssl_type!="NA" && !($this->set_rewriterule_per_site && $this->is_multisite_subfolder_install())) {
-                    $manual = true;
-                    $rules = $this->get_redirect_rules($manual);
-                    echo "&nbsp;";
-                    $arr_search = array("<",">","\n");
-                    $arr_replace = array("&lt","&gt","<br>");
-                    $rules = str_replace($arr_search, $arr_replace, $rules);
-                    _e("Try to add these rules above the wordpress lines in your .htaccess. If it doesn't work, just remove them again.","really-simple-ssl");
-                     ?>
-                     <br><br><code>
-                         <?php echo $rules; ?>
-                       </code>
-                     <?php
-                  }
-              }
-            ?>
-            </td><td></td>
-          </tr>
-
-          <?php
-          //HSTS on per site activated multisite is not possible.
-          if (!(is_multisite() && $this->set_rewriterule_per_site)) {
-          ?>
-          <tr>
-            <td>
-              <?php echo $this->hsts ? $this->img("success") :$this->img("warning");?>
-            </td>
-            <td>
-            <?php
-              if($this->hsts) {
-                 _e("HTTP Strict Transport Security was set in the .htaccess","really-simple-ssl");
-              } else {
-                 _e("HTTP Strict Transport Security was not set in your .htaccess. Do this only if your setup is fully working, and only when you do not plan to revert to http.","really-simple-ssl");
-                 ?>
-                <br>
-                <a href="https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security" target="_blank"><?php _e("More info about HSTS","really-simple-ssl");?></a>
-                 <?php
-              }
-            ?>
-            </td><td><a href="?page=rlrsssl_really_simple_ssl&tab=settings"><?php _e("Manage settings","really-simple-ssl");?></a></td>
-          </tr>
-
-          <?php
-              }
-          }
-          ?>
-
         </table>
         <?php do_action("rsssl_configuration_page");?>
     <?php
@@ -2107,7 +1271,11 @@ public function img($type) {
    *
    */
 
-public function enqueue_assets(){
+public function enqueue_assets($hook){
+  global $rsssl_admin_page;
+  if( $hook != $rsssl_admin_page )
+      return;
+
   wp_register_style( 'rlrsssl-css', $this->plugin_url . 'css/main.css');
   wp_enqueue_style( 'rlrsssl-css');
 
@@ -2124,19 +1292,78 @@ public function enqueue_assets(){
 
 public function setup_admin_page(){
   if (current_user_can($this->capability)) {
-
     add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
+
     add_action('admin_init', array($this, 'load_translation'),20);
+    add_filter('rsssl_tabs', array($this,'add_ssl_pages_tab'),10,3 );
+
+    global $rssslpp_licensing;
+    add_action('show_tab_license', array($rssslpp_licensing, 'add_license_page'));
+    add_filter('rsssl_tabs', array($rssslpp_licensing,'add_license_tab'),20,3 );
+    add_action('show_tab_ssl_pages', array($this, 'add_ssl_pages_page'));
+
     add_action('rsssl_configuration_page', array($this, 'configuration_page_more'));
 
-    //settings page, from creation and settings link in the plugins page
+    //settings page, form creation and settings link in the plugins page
     add_action('admin_menu', array($this, 'add_settings_page'),40);
+
     add_action('admin_init', array($this, 'create_form'),40);
 
     $plugin = $this->plugin_dir."/".$this->plugin_filename;
+
     add_filter("plugin_action_links_$plugin", array($this,'plugin_settings_link'));
+
   }
 }
+
+public function add_ssl_pages_page(){
+  //get list of all posttypes
+  $posts_array = array();
+  //look only in posts of used post types.
+  $args = array(
+     'public'   => true,
+  );
+  $post_types = get_post_types( $args);
+
+  ?>
+  <p>
+  <?php if ($this->exclude_pages) {
+    _e("You have Exclude pages from SSL activated.", "really-simple-ssl-on-specific-pages");
+    ?><br><?php
+    _e("The homepage and all pages added here will not be forced over SSL.", "really-simple-ssl-on-specific-pages")." &nbsp;";
+    ?><br><?php
+    _e("To switch this, disable the setting 'exclude pages' on the settings page.", "really-simple-ssl-on-specific-pages")." &nbsp;";
+  }else{
+    _e("Pages added here will be forced over SSL.", "really-simple-ssl-on-specific-pages")." &nbsp;";
+    ?><br><?php
+    _e("To switch this, enable the setting 'exclude pages' on the settings page.", "really-simple-ssl-on-specific-pages")." &nbsp;";
+  }
+
+
+
+  ?>
+
+</p>
+  <form action="" method="POST">
+    <?php wp_nonce_field( 'rsssl_nonce', 'rsssl_nonce' );?>
+    <select id="rsssl-posttype">
+      <?php foreach($post_types as $post_type) {?>
+              <option id="<?php echo $post_type?>"><?php echo $post_type;?></option>
+      <?php } ?>
+    </select>
+    <span id="rsssl-posts"></span>
+    <button type="button" class='button button-primary rsssl' id="rsssl_add_ssl_page" name="rsssl_add_ssl_page"><?php _e("Add", "really-simple-ssl-pro");?></button>
+    <span id="rsssl-pagelist"></span>
+  </form>
+
+  <?php
+}
+
+public function add_ssl_pages_tab($tabs){
+  $tabs['ssl_pages'] = __("SSL pages","really-simple-ssl-pro");
+  return $tabs;
+}
+
 
 public function configuration_page_more(){
   if (!$this->ad) return;
@@ -2160,24 +1387,16 @@ public function create_form(){
 
       register_setting( 'rlrsssl_options', 'rlrsssl_options', array($this,'options_validate') );
       add_settings_section('rlrsssl_settings', __("Settings","really-simple-ssl"), array($this,'section_text'), 'rlrsssl');
-      add_settings_field('id_do_not_edit_htaccess', __("Stop editing the .htaccess file","really-simple-ssl"), array($this,'get_option_do_not_edit_htaccess'), 'rlrsssl', 'rlrsssl_settings');
 
       //only show option to enable or disable mixed content and redirect when ssl is detected
-      if($this->site_has_ssl || $this->force_ssl_without_detection) {
+      if($this->site_has_ssl) {
         add_settings_field('id_autoreplace_insecure_links', __("Auto replace mixed content","really-simple-ssl"), array($this,'get_option_autoreplace_insecure_links'), 'rlrsssl', 'rlrsssl_settings');
-        add_settings_field('id_javascript_redirect', __("Enable javascript redirection to ssl","really-simple-ssl"), array($this,'get_option_javascript_redirect'), 'rlrsssl', 'rlrsssl_settings');
-      }
-
-      if($this->site_has_ssl && file_exists($this->ABSpath.".htaccess")) {
-        add_settings_field('id_hsts', __("Turn HTTP Strict Transport Security on","really-simple-ssl"), array($this,'get_option_hsts'), 'rlrsssl', 'rlrsssl_settings');
-      }
-
-      if(!$this->site_has_ssl) {
-        //no sense in showing force or ignore warning options when ssl is detected: everything should work fine
-        add_settings_field('id_force_ssl_without_detection', __("Force SSL without detection","really-simple-ssl"), array($this,'get_option_force_ssl_withouth_detection'), 'rlrsssl', 'rlrsssl_settings');
       }
 
       add_settings_field('id_debug', __("Debug","really-simple-ssl"), array($this,'get_option_debug'), 'rlrsssl', 'rlrsssl_settings');
+      add_settings_field('id_exclude_pages', __("Exclude pages from SSL","really-simple-ssl"), array($this,'get_option_exclude_pages'), 'rlrsssl', 'rlrsssl_settings');
+      add_settings_field('id_permanent_redirect', __("Redirect permanently","really-simple-ssl"), array($this,'get_option_permanent_redirect'), 'rlrsssl', 'rlrsssl_settings');
+
     }
 
   /**
@@ -2193,15 +1412,8 @@ public function section_text() {
   ?>
   <p>
   <?php
-    if ($this->site_has_ssl || $this->force_ssl_without_detection)
+    if ($this->site_has_ssl)
       _e('By unchecking the \'auto replace mixed content\' checkbox you can test if your site can run without this extra functionality. Uncheck, empty your cache when you use one, and go to the front end of your site. You should then check if you have mixed content errors, by clicking on the lock icon in the addres bar.','really-simple-ssl');
-    else {
-      _e('The force ssl without detection option can be used when the ssl was not detected, but you are sure you have ssl.','really-simple-ssl');
-    }
-
-    if ($this->site_has_ssl && is_multisite() && $this->set_rewriterule_per_site) {
-      _e('The HSTS option is not available for per site activated ssl, as it would force other sites over ssl as well.','really-simple-ssl');
-    }
   ?>
   </p>
   <?php
@@ -2220,31 +1432,14 @@ public function options_validate($input) {
   //fill array with current values, so we don't lose any
   $newinput = array();
   $newinput['site_has_ssl']                       = $this->site_has_ssl;
+
   $newinput['ssl_success_message_shown']          = $this->ssl_success_message_shown;
-  $newinput['htaccess_warning_shown']             = $this->htaccess_warning_shown;
-  $newinput['wpmu_subfolder_warning_shown']       = $this->wpmu_subfolder_warning_shown;
+  $newinput['yoasterror_shown']                   = $this->yoasterror_shown;
   $newinput['plugin_db_version']                  = $this->plugin_db_version;
-  $newinput['set_rewriterule_per_site']           = $this->set_rewriterule_per_site;
   $newinput['ssl_enabled']                        = $this->ssl_enabled;
-
-
-  if (!empty($input['hsts']) && $input['hsts']=='1') {
-    $newinput['hsts'] = TRUE;
-  } else {
-    $newinput['hsts'] = FALSE;
-  }
-
-  if (!empty($input['javascript_redirect']) && $input['javascript_redirect']=='1') {
-    $newinput['javascript_redirect'] = TRUE;
-  } else {
-    $newinput['javascript_redirect'] = FALSE;
-  }
-
-  if (!empty($input['force_ssl_without_detection']) && $input['force_ssl_without_detection']=='1') {
-    $newinput['force_ssl_without_detection'] = TRUE;
-  } else {
-    $newinput['force_ssl_without_detection'] = FALSE;
-  }
+  $newinput['ssl_enabled_networkwide']            = $this->ssl_enabled_networkwide;
+  $newinput['selected_networkwide_or_per_site']   = $this->selected_networkwide_or_per_site;
+  $newinput['ssl_pages']                          = $this->ssl_pages;
 
   if (!empty($input['autoreplace_insecure_links']) && $input['autoreplace_insecure_links']=='1') {
     $newinput['autoreplace_insecure_links'] = TRUE;
@@ -2258,17 +1453,16 @@ public function options_validate($input) {
     $newinput['debug'] = FALSE;
     $this->debug_log = "";
   }
-
-  if (!empty($input['do_not_edit_htaccess']) && $input['do_not_edit_htaccess']=='1') {
-    $newinput['do_not_edit_htaccess'] = TRUE;
+  if (!empty($input['exclude_pages']) && $input['exclude_pages']=='1') {
+    $newinput['exclude_pages'] = TRUE;
   } else {
-    $newinput['do_not_edit_htaccess'] = FALSE;
+    $newinput['exclude_pages'] = FALSE;
   }
-
-  //if autoreplace value is changed, flush the cache
-  if (($newinput['autoreplace_insecure_links']!= $this->autoreplace_insecure_links)) {
- 	 add_option('really_simple_ssl_settings_changed', 'settings_changed' );
-	}
+  if (!empty($input['permanent_redirect']) && $input['permanent_redirect']=='1') {
+    $newinput['permanent_redirect'] = TRUE;
+  } else {
+    $newinput['permanent_redirect'] = FALSE;
+  }
 
   return $newinput;
 }
@@ -2287,79 +1481,29 @@ $options = get_option('rlrsssl_options');
 echo '<input id="rlrsssl_options" name="rlrsssl_options[debug]" size="40" type="checkbox" value="1"' . checked( 1, $this->debug, false ) ." />";
 }
 
+public function get_option_exclude_pages() {
+$options = get_option('rlrsssl_options');
+echo '<input id="rlrsssl_options" name="rlrsssl_options[exclude_pages]" size="40" type="checkbox" value="1"' . checked( 1, $this->exclude_pages, false ) ." />";
+}
+
+public function get_option_permanent_redirect() {
+$options = get_option('rlrsssl_options');
+echo '<input id="rlrsssl_options" name="rlrsssl_options[permanent_redirect]" size="40" type="checkbox" value="1"' . checked( 1, $this->permanent_redirect, false ) ." />";
+}
+
   /**
    * Insert option into settings form
-   * @since  2.0
+   *
+   * @since  2.1
    *
    * @access public
    *
    */
 
-public function get_option_hsts() {
-  $options = get_option('rlrsssl_options');
-  $disabled = (!is_writable($this->ABSpath.".htaccess") || (is_multisite() && $this->set_rewriterule_per_site) || $this->do_not_edit_htaccess) ? "disabled" : "";
-
-  echo '<input id="rlrsssl_options" name="rlrsssl_options[hsts]" onClick="return confirm(\''.__("Are you sure? Your visitors will keep going to a https site for a year after you turn this off.","really-simple-ssl").'\');" size="40" type="checkbox" '.$disabled.' value="1"' . checked( 1, $this->hsts, false ) ." />";
-  if (is_multisite() && $this->set_rewriterule_per_site) _e("On multisite with per site activation, activating HSTS is not possible","really-simple-ssl");
-  if ($this->do_not_edit_htaccess || !is_writable($this->ABSpath.".htaccess")) _e("You cannot use this option when .htaccess is not writable, or 'stop editing the .htaccess file' is enabled.","really-simple-ssl");
-
-}
-
-/**
- * Insert option into settings form
- * @since  2.2
- *
- * @access public
- *
- */
-
-public function get_option_javascript_redirect() {
-$options = get_option('rlrsssl_options');
-echo '<input id="rlrsssl_options" name="rlrsssl_options[javascript_redirect]" size="40" type="checkbox" value="1"' . checked( 1, $this->javascript_redirect, false ) ." />";
-}
-
-/**
- * Insert option into settings form
- *
- * @since  2.0
- *
- * @access public
- *
- */
-
-public function get_option_force_ssl_withouth_detection() {
-$options = get_option('rlrsssl_options');
-echo '<input id="rlrsssl_options" onClick="return confirm(\''.__("Are you sure you have an SSL certifcate? Forcing ssl on a non-ssl site can break your site.","really-simple-ssl").'\');" name="rlrsssl_options[force_ssl_without_detection]" size="40" type="checkbox" value="1"' . checked( 1, $this->force_ssl_without_detection, false ) ." />";
-}
-
-/**
- * Insert option into settings form
- *
- * @since  2.0
- *
- * @access public
- *
- */
-
-public function get_option_do_not_edit_htaccess() {
-  $options = get_option('rlrsssl_options');
-  echo '<input id="rlrsssl_options" name="rlrsssl_options[do_not_edit_htaccess]" size="40" type="checkbox" value="1"' . checked( 1, $this->do_not_edit_htaccess, false ) ." />";
-  if (!$this->do_not_edit_htaccess && !is_writable($this->ABSpath.".htaccess")) _e(".htaccess is currently not writable.","really-simple-ssl");
-}
-
-/**
- * Insert option into settings form
- *
- * @since  2.1
- *
- * @access public
- *
- */
-
-public function get_option_autoreplace_insecure_links() {
-  $options = get_option('rlrsssl_options');
-  echo "<input id='rlrsssl_options' name='rlrsssl_options[autoreplace_insecure_links]' size='40' type='checkbox' value='1'" . checked( 1, $this->autoreplace_insecure_links, false ) ." />";
-}
+  public function get_option_autoreplace_insecure_links() {
+    $options = get_option('rlrsssl_options');
+    echo "<input id='rlrsssl_options' name='rlrsssl_options[autoreplace_insecure_links]' size='40' type='checkbox' value='1'" . checked( 1, $this->autoreplace_insecure_links, false ) ." />";
+  }
     /**
      * Add settings link on plugins overview page
      *
@@ -2369,42 +1513,39 @@ public function get_option_autoreplace_insecure_links() {
      *
      */
 
-public function plugin_settings_link($links) {
-  $settings_link = '<a href="options-general.php?page=rlrsssl_really_simple_ssl">'.__("Settings","really-simple-ssl").'</a>';
-  array_unshift($links, $settings_link);
-  return $links;
-}
-
-public function check_plugin_conflicts() {
-  //Yoast conflict only occurs when mixed content fixer is active
-  if ($this->autoreplace_insecure_links && defined('WPSEO_VERSION') ) {
-    if ($this->debug) {$this->trace_log("Detected Yoast seo plugin");}
-    $wpseo_options  = get_option("wpseo_titles");
-    $forcerewritetitle = isset($wpseo_options['forcerewritetitle']) ? $wpseo_options['forcerewritetitle'] : FALSE;
-    if ($forcerewritetitle) {
-      $this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"] = TRUE;
-      if ($this->debug) {$this->trace_log("Force rewrite titles set in Yoast plugin, which prevents really simple ssl from replacing mixed content");}
-    } else {
-      if ($this->debug) {$this->trace_log("No conflict issues with Yoast SEO detected");}
-    }
+  public function plugin_settings_link($links) {
+    $settings_link = '<a href="options-general.php?page=rlrsssl_really_simple_ssl">'.__("Settings","really-simple-ssl").'</a>';
+    array_unshift($links, $settings_link);
+    return $links;
   }
 
-  //not necessary anymore after woocommerce 2.5
-  if (class_exists('WooCommerce') && defined( 'WOOCOMMERCE_VERSION' ) && version_compare( WOOCOMMERCE_VERSION, '2.5', '<' ) ) {
-    $woocommerce_force_ssl_checkout = get_option("woocommerce_force_ssl_checkout");
-    $woocommerce_unforce_ssl_checkout = get_option("woocommerce_unforce_ssl_checkout");
-    if (isset($woocommerce_force_ssl_checkout) && $woocommerce_force_ssl_checkout!="no") {
-      $this->plugin_conflict["WOOCOMMERCE_FORCESSL"] = TRUE;
+  public function check_plugin_conflicts() {
+    //Yoast conflict only occurs when mixed content fixer is active
+    if ($this->autoreplace_insecure_links && defined('WPSEO_VERSION') ) {
+      $wpseo_options  = get_option("wpseo_titles");
+      $forcerewritetitle = isset($wpseo_options['forcerewritetitle']) ? $wpseo_options['forcerewritetitle'] : FALSE;
+      if ($forcerewritetitle) {
+        $this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"] = TRUE;
+        if ($this->debug) {$this->trace_log("Force rewrite titles set in Yoast plugin, which prevents really simple ssl from replacing mixed content");}
+      }
     }
 
-    //setting force ssl in certain pages with woocommerce will result in redirect errors.
-    if (isset($woocommerce_unforce_ssl_checkout) && $woocommerce_unforce_ssl_checkout!="no") {
-      $this->plugin_conflict["WOOCOMMERCE_FORCEHTTP"] = TRUE;
-      if ($this->debug) {$this->trace_log("Force HTTP when leaving the checkout set in woocommerce, disable this setting to prevent redirect loops.");}
+    //not necessary anymore after woocommerce 2.5
+    if (class_exists('WooCommerce') && defined( 'WOOCOMMERCE_VERSION' ) && version_compare( WOOCOMMERCE_VERSION, '2.5', '<' ) ) {
+      $woocommerce_force_ssl_checkout = get_option("woocommerce_force_ssl_checkout");
+      $woocommerce_unforce_ssl_checkout = get_option("woocommerce_unforce_ssl_checkout");
+      if (isset($woocommerce_force_ssl_checkout) && $woocommerce_force_ssl_checkout!="no") {
+        $this->plugin_conflict["WOOCOMMERCE_FORCESSL"] = TRUE;
+      }
+
+      //setting force ssl in certain pages with woocommerce will result in redirect errors.
+      if (isset($woocommerce_unforce_ssl_checkout) && $woocommerce_unforce_ssl_checkout!="no") {
+        $this->plugin_conflict["WOOCOMMERCE_FORCEHTTP"] = TRUE;
+        if ($this->debug) {$this->trace_log("Force HTTP when leaving the checkout set in woocommerce, disable this setting to prevent redirect loops.");}
+      }
     }
+
   }
-
-}
 
 
 
@@ -2450,4 +1591,7 @@ protected function is_subdirectory_install(){
    return false;
 }
 
-} //class closure
+
+
+
+} }//class closure
