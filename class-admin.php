@@ -14,6 +14,7 @@ if (!class_exists('rsssl_admin')) {
   public $do_wpconfig_loadbalancer_fix        = FALSE;
   public $ssl_enabled                         = FALSE;
 
+
   //multisite variables
   public $ssl_enabled_networkwide           = FALSE;
   public $selected_networkwide_or_per_site  = FALSE;
