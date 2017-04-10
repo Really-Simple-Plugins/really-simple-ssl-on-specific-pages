@@ -12,9 +12,11 @@ if ( ! class_exists( 'rsssl_admin_mixed_content_fixer' ) ) {
 
     self::$_this = $this;
 	  global $rsssl_front_end;
+
     if (!is_admin() && is_ssl() && $rsssl_front_end->autoreplace_insecure_links) {
       $this->fix_mixed_content();
     }
+
   }
 
   static function this() {
@@ -75,12 +77,17 @@ if ( ! class_exists( 'rsssl_admin_mixed_content_fixer' ) ) {
    */
 
   public function build_url_list() {
-    $home_no_www  = str_replace ( "://www." , "://" , get_option('home'));
+    $home = str_replace ( "https://" , "http://" , get_option('home'));
+    $home_no_www  = str_replace ( "://www." , "://" , $home);
     $home_yes_www = str_replace ( "://" , "://www." , $home_no_www);
 
+    //for the escaped version, we only replace the home_url, not it's www or non www counterpart, as it is most likely not used
+    $escaped_home = str_replace ( "/" , "\/" , $home);
+
     $this->http_urls = array(
-        str_replace ( "https://" , "http://" , $home_yes_www),
-        str_replace ( "https://" , "http://" , $home_no_www),
+        $home_yes_www,
+        $home_no_www,
+        $escaped_home,
         "src='http://",
         'src="http://',
     );
@@ -97,9 +104,9 @@ if ( ! class_exists( 'rsssl_admin_mixed_content_fixer' ) ) {
 
  public function replace_insecure_links($str) {
    $search_array = apply_filters('rlrsssl_replace_url_args', $this->http_urls);
-   $ssl_array = str_replace ( "http://" , "https://", $search_array);
+   $ssl_array = str_replace ( array("http://", "http:\/\/") , array("https://", "https:\/\/"), $search_array);
    //now replace these links
-   $str = str_replace ($search_array , $ssl_array , $str);
+   //$str = str_replace ($search_array , $ssl_array , $str);
 
    //replace all http links except hyperlinks
    //all tags with src attr are already fixed by str_replace
@@ -108,12 +115,12 @@ if ( ! class_exists( 'rsssl_admin_mixed_content_fixer' ) ) {
      '/<link .*?href=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
      '/<meta property="og:image" .*?content=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
      '/<form [^>]*?action=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
-     /*Don't use these, these links are taken care of by the src replace */
-     //'/<(?:img|iframe) .*?src=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
-     //'/<script [^>]*?src=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
+
+     '/<(?:img|iframe) .*?src=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
+     '/<script [^>]*?src=[\'"]\K(http:\/\/)(?=[^\'"]+)/i',
    );
    $str = preg_replace($pattern, 'https://', $str);
-   $str = str_replace ( "<body " , '<body data-rsssl="1" ', $str);
+   $str = str_replace ( "<body " , '<body data-rsssl=1 ', $str);
    return apply_filters("rsssl_fixer_output", $str);
  }
 

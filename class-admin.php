@@ -715,43 +715,6 @@ if (!class_exists('rsssl_admin')) {
        }
      }
 
-     if ($this->site_has_ssl) {
-       //check the type of ssl, either by parsing the returned string, or by reading the server vars.
-       if ((strpos($filecontents, "#LOADBALANCER#") !== false) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && ($_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https'))) {
-         $this->ssl_type = "LOADBALANCER";
-         //check for is_ssl()
-         if (((strpos($filecontents, "#SERVER-HTTPS-ON#") === false) &&
-             (strpos($filecontents, "#SERVER-HTTPS-1#") === false) &&
-             (strpos($filecontents, "#SERVERPORT443#") === false)) || !is_ssl()) {
-           //when Loadbalancer is detected, but is_ssl would return false, we should add some code to wp-config.php
-           if (!$this->wpconfig_has_fixes()) {
-             $this->do_wpconfig_loadbalancer_fix = TRUE;
-           }
-           if ($this->debug) {$this->trace_log("No server variable detected ");}
-         }
-       } elseif ((strpos($filecontents, "#CDN#") !== false) || (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && ($_SERVER['HTTP_X_FORWARDED_SSL'] == 'on'))) {
-         $this->ssl_type = "CDN";
-       } elseif ((strpos($filecontents, "#SERVER-HTTPS-ON#") !== false) || (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == 'on')) {
-         $this->ssl_type = "SERVER-HTTPS-ON";
-       } elseif ((strpos($filecontents, "#SERVER-HTTPS-1#") !== false) || (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == '1')) {
-         $this->ssl_type = "SERVER-HTTPS-1";
-       } elseif ((strpos($filecontents, "#SERVERPORT443#") !== false) || (isset($_SERVER['SERVER_PORT']) && ( '443' == $_SERVER['SERVER_PORT'] ))) {
-         $this->ssl_type = "SERVERPORT443";
-       } elseif ((strpos($filecontents, "#NO KNOWN SSL CONFIGURATION DETECTED#") !== false)) {
-         //if we are here, SSL was detected, but without any known server variables set.
-         //So we can use this info to set a server variable ourselfes.
-         if (!$this->wpconfig_has_fixes()) {
-           $this->no_server_variable = TRUE;
-         }
-         $this->trace_log("No server variable detected ");
-         $this->ssl_type = "NA";
-       } else {
-         //no valid response, so set to NA
-         $this->ssl_type = "NA";
-       }
- 	    $this->trace_log("ssl type: ".$this->ssl_type);
-     }
-
      $this->save_options();
    }
 
@@ -804,19 +767,29 @@ if (!class_exists('rsssl_admin')) {
         $ssl_page = reset($this->ssl_pages);
         $url = get_permalink($ssl_page);
         //check if the mixed content fixer is active
+        $status = 0;
+        $web_source = "";
+        //check if the mixed content fixer is active
+        $response = wp_remote_get( $url );
 
-        $web_source = $rsssl_url->get_contents($url);
-        if ($rsssl_url->error_number!=0 || (strpos($web_source, "<!-- Really Simple SSL mixed content fixer active -->") === false)) {
-          if ($rsssl_url->error_number!=0) $this->mixed_content_fixer_status = $rsssl_url->get_curl_error($rsssl_url->error_number);
-          $this->trace_log("Check for Mixed Content detection failed");
+        if( is_array($response) ) {
+          $status = wp_remote_retrieve_response_code( $response );
+          $web_source = wp_remote_retrieve_body($response);
+        }
+
+        if ($status!=200 || (strpos($web_source, "data-rsssl=") === false)) {
+          $this->trace_log("Check for Mixed Content detection failed, http statuscode ".$status);
           return false;
         } else {
           $this->trace_log("Mixed content fixer was successfully detected on the front end.");
           return true;
         }
+
     }
+    return false;
 
   }
+
 
   /**
    * Test if a domain has a subfolder structure
@@ -1263,6 +1236,7 @@ public function img($type) {
   }
 }
 
+
   /**
    * Add some css for the settings page
    *
@@ -1410,14 +1384,7 @@ public function create_form(){
    */
 
 public function section_text() {
-  ?>
-  <p>
-  <?php
-    if ($this->site_has_ssl)
-      _e('By unchecking the \'auto replace mixed content\' checkbox you can test if your site can run without this extra functionality. Uncheck, empty your cache when you use one, and go to the front end of your site. You should then check if you have mixed content errors, by clicking on the lock icon in the addres bar.','really-simple-ssl');
-  ?>
-  </p>
-  <?php
+
   }
 
   /**

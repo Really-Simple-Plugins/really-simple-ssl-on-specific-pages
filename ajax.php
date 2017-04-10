@@ -43,8 +43,6 @@ function init_ajax_filter($hook) {
       }
     }
 
-
-
     $really_simple_ssl->save_options();
     $pagelist = "";
 
