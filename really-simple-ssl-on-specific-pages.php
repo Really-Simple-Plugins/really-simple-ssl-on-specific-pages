@@ -24,6 +24,12 @@ $rsssl_mixed_content_fixer  = new rsssl_mixed_content_fixer;
 add_action("wp_loaded", array($rsssl_front_end, "force_ssl"),20);
 
 if (is_admin()) {
+  require_once(ABSPATH.'wp-admin/includes/plugin.php');
+  $plugin_data = get_plugin_data( __FILE__ );
+  define('rsssl_pp_url', plugin_dir_url(__FILE__ ));
+  define('rsssl_pp_path', plugin_dir_path(__FILE__ ));
+  define('rsssl_pp_plugin', plugin_basename( __FILE__ ) );
+  define('rsssl_pp_version', $plugin_data['Version'] );
   require_once( dirname( __FILE__ ) .  '/class-licensing.php' );
   require_once( dirname( __FILE__ ) .  '/class-admin.php' );
   require_once( dirname( __FILE__ ) .  '/class-cache.php' );

@@ -5,7 +5,6 @@ if (!class_exists('rsssl_admin')) {
 
   private static $_this;
 
-  //wpconfig fixing variables @TODO: convert to error array
   //true when siteurl and homeurl are defined in wp-config and can't be changed
   public $wpconfig_siteurl_not_fixed          = FALSE;
   public $no_server_variable                  = FALSE;

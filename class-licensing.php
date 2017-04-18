@@ -89,7 +89,7 @@ public function plugin_updater() {
 
 	// setup the updater
 	$edd_updater = new EDD_SL_Plugin_Updater( REALLY_SIMPLE_SSL_URL, dirname(__FILE__)."/really-simple-ssl-on-specific-pages.php", array(
-			'version' 	=> '1.0.5', 				// current version number
+			'version' 	=> rsssl_pp_version, 				// current version number
 			'license' 	=> $license_key, 		// license key (used get_option above to retrieve from DB)
 			'item_name' => REALLY_SIMPLE_SSL_PER_PAGE, 	// name of this plugin
 			'author' 	=> 'Rogier Lankhorst'  // author of this plugin
