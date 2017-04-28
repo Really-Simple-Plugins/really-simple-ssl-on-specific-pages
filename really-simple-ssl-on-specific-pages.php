@@ -31,10 +31,7 @@ class REALLY_SIMPLE_SSL_PP {
 
     public static function instance() {
   if ( ! isset( self::$instance ) && ! ( self::$instance instanceof REALLY_SIMPLE_SSL_PP ) ) {
-    require_once(ABSPATH.'wp-admin/includes/plugin.php');
-    $core_plugin = 'really-simple-ssl/rlrsssl-really-simple-ssl.php';
 
-    if (!is_plugin_active($core_plugin) ) {
       self::$instance = new REALLY_SIMPLE_SSL_PP;
       self::$instance->setup_constants();
       self::$instance->includes();
@@ -66,9 +63,7 @@ class REALLY_SIMPLE_SSL_PP {
       }
 
       self::$instance->hooks();
-    } else {
-      deactivate_plugins( plugin_basename('really-simple-ssl/rlrsssl-really-simple-ssl.php') );
-    }
+
   }
 
   return self::$instance;
@@ -107,7 +102,23 @@ class REALLY_SIMPLE_SSL_PP {
     }
 }
 
-function RSSSL() {
-  return REALLY_SIMPLE_SSL_PP::instance();
+require_once(ABSPATH.'wp-admin/includes/plugin.php');
+$core_plugin = 'really-simple-ssl/rlrsssl-really-simple-ssl.php';
+
+if (is_plugin_active($core_plugin) ) {
+  add_action('admin_notices', 'rsssl_pp_admin_notices');
+  function rsssl_pp_admin_notices() {
+    ?>
+      <div id="message" class="error fade notice">
+        <h1><?php echo __("Plugin conflict","really-simple-ssl-pro");?></h1>
+        <p><?php echo __("Really Simple SSL per page was not activated. Really Simple SSL needs to be deactivated for Really Simple SSL per page to work correctly.","really-simple-ssl-pp");?></p>
+      </p></div>
+    <?php
+  }
+
+} else {
+  function RSSSL() {
+    return REALLY_SIMPLE_SSL_PP::instance();
+  }
+  add_action( 'plugins_loaded', 'RSSSL', 9 );
 }
-add_action( 'plugins_loaded', 'RSSSL', 9 );
