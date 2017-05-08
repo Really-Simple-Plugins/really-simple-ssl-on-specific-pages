@@ -34,18 +34,17 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
    */
 
   public function force_ssl() {
-    if ($this->ssl_enabled) {
 
-      if (!defined('FORCE_SSL_ADMIN')) define('FORCE_SSL_ADMIN', true);
-      if (!defined('FORCE_SSL_LOGIN')) define('FORCE_SSL_LOGIN', true);
+    if ($this->ssl_enabled) {
+      if (!(defined('rsssl_pp_backend_http') && rsssl_pp_backend_http)) {
+        if (!defined('FORCE_SSL_ADMIN')) define('FORCE_SSL_ADMIN', true);
+        if (!defined('FORCE_SSL_LOGIN')) define('FORCE_SSL_LOGIN', true);
+      }
 
       add_filter('home_url', array($this, 'conditional_ssl_home_url'),10,4);
       add_action('wp', array($this, 'redirect_to_ssl'), 40,3);
     }
 
-    // if (is_ssl() && $this->autoreplace_insecure_links) {
-    //   add_action('template_include', array($this, 'replace_insecure_links_buffer'), 0);
-    // }
   }
 
   public function conditional_ssl_home_url($url, $path) {
@@ -73,7 +72,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   if (($this->is_ssl_page()) && !is_ssl()) {
 		$redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     $redirect_type = $this->permanent_redirect ? "301" : "302";
-    wp_redirect($redirect_url, $redirect_type);
+    wp_safe_redirect($redirect_url, $redirect_type);
     exit;
 	}
 }
