@@ -72,7 +72,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   if (($this->is_ssl_page()) && !is_ssl()) {
 		$redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     $redirect_type = $this->permanent_redirect ? "301" : "302";
-    wp_safe_redirect($redirect_url, $redirect_type);
+    wp_redirect($redirect_url, $redirect_type);
     exit;
 	}
 }

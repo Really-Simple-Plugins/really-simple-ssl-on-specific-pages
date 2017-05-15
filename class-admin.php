@@ -1283,7 +1283,7 @@ public function setup_admin_page(){
 
     add_action('admin_init', array($this, 'create_form'),40);
 
-    $plugin = $this->plugin_dir."/".$this->plugin_filename;
+    $plugin = rsssl_pp_plugin;
 
     add_filter("plugin_action_links_$plugin", array($this,'plugin_settings_link'));
 

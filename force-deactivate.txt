@@ -26,8 +26,6 @@
   require_once( dirname( __FILE__ ) .  '/class-admin.php' );
   $rl_rsssl = new rl_rsssl_admin();
 
-
-
   $step = 1;
   echo "<h1>Force deactivation of Really Simple SSL</h1>";
   echo $step.". Resetting options"."<br>";

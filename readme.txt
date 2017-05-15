@@ -4,7 +4,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 4.7
-Stable tag: 1.0.7
+Stable tag: 1.0.9
 
 Premium support and features for Really Simple SSL
 
@@ -27,6 +27,15 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 1.0.9 =
+* Bug fix in mixed content fixer.
+
+= 1.0.8 =
+* Fixed issue with mixed content fixer
+
+= 1.0.7 =
+* Restructured plugin to work with updated pro plugin
+
 = 1.0.6 =
 * Added option to set a page as http or https in the page or post itself
 * Added default wp contstants Force Admin and Force login over SSL

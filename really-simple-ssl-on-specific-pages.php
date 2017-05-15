@@ -3,7 +3,7 @@
  * Plugin Name: Really Simple SSL on specific pages
  * Plugin URI: https://www.really-simple-ssl.com
  * Description: Lightweight plugin without any setup to make your site ssl proof
- * Version: 1.0.7
+ * Version: 1.0.9
  * Text Domain: really-simple-ssl-specific-pages
  * Domain Path: /languages
  * Author: Rogier Lankhorst
@@ -36,12 +36,15 @@ class REALLY_SIMPLE_SSL_PP {
       self::$instance->setup_constants();
       self::$instance->includes();
 
-      self::$instance->rsssl_front_end           = new rsssl_front_end();
-      self::$instance->rsssl_mixed_content_fixer = new rsssl_mixed_content_fixer();
-
       // Backwards compatibility for add-ons
       global $rsssl_front_end, $rsssl_mixed_content_fixer;
+
+      self::$instance->rsssl_front_end           = new rsssl_front_end();
+
       $rsssl_front_end           = self::$instance->rsssl_front_end;
+
+      self::$instance->rsssl_mixed_content_fixer = new rsssl_mixed_content_fixer();
+
       $rsssl_mixed_content_fixer = self::$instance->rsssl_mixed_content_fixer;
 
       if ( is_admin() ) {

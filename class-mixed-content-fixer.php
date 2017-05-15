@@ -85,9 +85,9 @@ if ( ! class_exists( 'rsssl_admin_mixed_content_fixer' ) ) {
     $escaped_home = str_replace ( "/" , "\/" , $home);
 
     $this->http_urls = array(
-        $home_yes_www,
-        $home_no_www,
-        $escaped_home,
+        // $home_yes_www,
+        // $home_no_www,
+        // $escaped_home,
         "src='http://",
         'src="http://',
     );
@@ -106,7 +106,7 @@ if ( ! class_exists( 'rsssl_admin_mixed_content_fixer' ) ) {
    $search_array = apply_filters('rlrsssl_replace_url_args', $this->http_urls);
    $ssl_array = str_replace ( array("http://", "http:\/\/") , array("https://", "https:\/\/"), $search_array);
    //now replace these links
-   //$str = str_replace ($search_array , $ssl_array , $str);
+   $str = str_replace ($search_array , $ssl_array , $str);
 
    //replace all http links except hyperlinks
    //all tags with src attr are already fixed by str_replace
