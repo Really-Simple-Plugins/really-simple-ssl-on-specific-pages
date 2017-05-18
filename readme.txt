@@ -4,7 +4,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 4.7
-Stable tag: 1.0.9
+Stable tag: 1.0.10
 
 Premium support and features for Really Simple SSL
 

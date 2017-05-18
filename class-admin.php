@@ -12,6 +12,9 @@ if (!class_exists('rsssl_admin')) {
 
   public $do_wpconfig_loadbalancer_fix        = FALSE;
   public $ssl_enabled                         = FALSE;
+  
+  //for pro compatibility
+  public $do_not_edit_htaccess                = FALSE;
 
 
   //multisite variables
@@ -612,7 +615,7 @@ if (!class_exists('rsssl_admin')) {
       'debug'                             => $this->debug,
       'ssl_enabled'                       => $this->ssl_enabled,
       'ssl_pages'                         => $this->ssl_pages,
-      'permanent_redirect'                => $this->permanent_redirect,
+      'home_ssl'                          => $this->home_ssl,
     );
 
     update_option('rlrsssl_options',$options);
@@ -1370,6 +1373,7 @@ public function create_form(){
       add_settings_field('id_debug', __("Debug","really-simple-ssl"), array($this,'get_option_debug'), 'rlrsssl', 'rlrsssl_settings');
       add_settings_field('id_exclude_pages', __("Exclude pages from SSL","really-simple-ssl"), array($this,'get_option_exclude_pages'), 'rlrsssl', 'rlrsssl_settings');
       add_settings_field('id_permanent_redirect', __("Redirect permanently","really-simple-ssl"), array($this,'get_option_permanent_redirect'), 'rlrsssl', 'rlrsssl_settings');
+      add_settings_field('id_home_ssl', __("Homepage on SSL","really-simple-ssl"), array($this,'get_option_home_ssl'), 'rlrsssl', 'rlrsssl_settings');
 
     }
 
@@ -1431,6 +1435,12 @@ public function options_validate($input) {
     $newinput['permanent_redirect'] = FALSE;
   }
 
+  if (!empty($input['home_ssl']) && $input['home_ssl']=='1') {
+    $newinput['home_ssl'] = TRUE;
+  } else {
+    $newinput['home_ssl'] = FALSE;
+  }
+
   return $newinput;
 }
 
@@ -1456,6 +1466,11 @@ echo '<input id="rlrsssl_options" name="rlrsssl_options[exclude_pages]" size="40
 public function get_option_permanent_redirect() {
 $options = get_option('rlrsssl_options');
 echo '<input id="rlrsssl_options" name="rlrsssl_options[permanent_redirect]" size="40" type="checkbox" value="1"' . checked( 1, $this->permanent_redirect, false ) ." />";
+}
+
+public function get_option_home_ssl() {
+$options = get_option('rlrsssl_options');
+echo '<input id="rlrsssl_options" name="rlrsssl_options[home_ssl]" size="40" type="checkbox" value="1"' . checked( 1, $this->home_ssl, false ) ." />";
 }
 
   /**

@@ -10,6 +10,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     public $ssl_pages                       = array();
     public $exclude_pages                   = FALSE;
     public $permanent_redirect              = FALSE;
+    public $home_ssl;
 
   function __construct() {
     if ( isset( self::$_this ) )
@@ -48,7 +49,6 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   }
 
   public function conditional_ssl_home_url($url, $path) {
-
   	$page = get_page_by_path( $path , OBJECT, get_post_types() );
   	if (!empty($page))  {
   		if (!$this->is_ssl_page($page->ID)) {
@@ -59,7 +59,19 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   		}
   	}
 
-  	//when nothing found, return default, which depends on exclusion settings.
+    //when excluded ssl, homepage not ssl, in case of homepage it should return http.
+    //when dedault, homepage ssl, in case of homepage it should return https.
+
+    if (is_home() || is_front_page()) {
+      if ($this->home_ssl){
+        return str_replace( 'http://', 'https://', $url );
+      } else {
+        return str_replace( 'https://', 'http://', $url );
+      }
+    }
+
+    //if we're here, it's not a page, post, or homepage. give back a default just in case.
+  	//return default, which depends on exclusion settings.
     if ($this->exclude_pages) {
   	    return str_replace( 'http://', 'https://', $url );
     } else {
@@ -127,6 +139,8 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
       $this->autoreplace_insecure_links   = isset($options['autoreplace_insecure_links']) ? $options['autoreplace_insecure_links'] : TRUE;
       $this->ssl_enabled                  = isset($options['ssl_enabled']) ? $options['ssl_enabled'] : $this->site_has_ssl;
       $this->ssl_pages                    = isset($options['ssl_pages']) ? $options['ssl_pages'] : array();
+      //with exclude pages from ssl, homepage is default https.
+      $this->home_ssl                     = isset($options['home_ssl']) ? $options['home_ssl'] : $this->exclude_pages;
     }
 
   }
