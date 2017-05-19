@@ -12,10 +12,9 @@ if (!class_exists('rsssl_admin')) {
 
   public $do_wpconfig_loadbalancer_fix        = FALSE;
   public $ssl_enabled                         = FALSE;
-  
+
   //for pro compatibility
   public $do_not_edit_htaccess                = FALSE;
-
 
   //multisite variables
   public $ssl_enabled_networkwide           = FALSE;
