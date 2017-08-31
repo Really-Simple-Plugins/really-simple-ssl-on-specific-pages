@@ -1,5 +1,6 @@
 === Really Simple SSL pro ===
-Contributors:RogierLankhorst
+Contributors: RogierLankhorst
+Donate link: https://www.paypal.me/reallysimplessl
 Tags: mixed content, insecure content, secure website, website security, ssl, https, tls, security, secure socket layers, hsts
 Requires at least: 4.2
 License: GPL2
@@ -64,3 +65,13 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 If you upgrade to 1.1.0, please check the new homepage setting in settings/ssl.
 
 == Screenshots ==
+* If SSL is detected you can enable SSL after activation.
+* The Really Simple SSL configuration tab.
+* List of detected items with mixed content.
+
+== Frequently asked questions ==
+* Really Simple SSL maintains an extensive knowledge-base at https://www.really-simple-ssl.com.
+
+== Upgrade notice ==
+On settings page load, the .htaccess file is no rewritten. If you have made .htaccess customizations to the RSSSL block and have not blocked the plugin from editing it, do so before upgrading.
+Always back up before any upgrade. Especially .htaccess, wp-config.php and the plugin folder. This way you can easily roll back.

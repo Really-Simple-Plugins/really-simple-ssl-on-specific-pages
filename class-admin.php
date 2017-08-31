@@ -933,8 +933,6 @@ public function insert_dismiss_success() {
   <?php
 }
 
-
-
   /**
    * Process the ajax dismissal of the success message.
    *
