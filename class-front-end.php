@@ -25,7 +25,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   }
 
   /**
-   * Javascript redirect, when ssl is true.
+   *
    * Mixed content replacement when ssl is true and fixer is enabled.
    *
    * @since  2.2
@@ -49,7 +49,20 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   }
 
   public function conditional_ssl_home_url($url, $path) {
-  	$page = get_page_by_path( $path , OBJECT, get_post_types() );
+
+    //if this url is the homeurl or siteurl, it should be decided by the homepage setting if it is https or not.
+    $home = rtrim(get_option('home'),"/");
+    $url = rtrim($url,"/");
+
+    if (str_replace("https://", "http://", $url) == $home){
+      if ($this->home_ssl){
+        return str_replace( 'http://', 'https://', $url );
+      } else {
+        return str_replace( 'https://', 'http://', $url );
+      }
+    }
+
+    $page = get_page_by_path( $path , OBJECT, get_post_types() );
   	if (!empty($page))  {
   		if (!$this->is_ssl_page($page->ID)) {
   			return str_replace( 'https://', 'http://', $url );
@@ -58,17 +71,6 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   			return str_replace( 'http://', 'https://', $url );
   		}
   	}
-
-    //when excluded ssl, homepage not ssl, in case of homepage it should return http.
-    //when dedault, homepage ssl, in case of homepage it should return https.
-
-    if (is_home() || is_front_page()) {
-      if ($this->home_ssl){
-        return str_replace( 'http://', 'https://', $url );
-      } else {
-        return str_replace( 'https://', 'http://', $url );
-      }
-    }
 
     //if we're here, it's not a page, post, or homepage. give back a default just in case.
   	//return default, which depends on exclusion settings.
@@ -79,15 +81,31 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     }
   }
 
+
+
+
  public function redirect_to_ssl() {
+   $redirect_to_ssl = false;
+
+   if ((is_home() || is_front_page()) && $this->home_ssl && !is_ssl()) {
+     $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+      $redirect_type = $this->permanent_redirect ? "301" : "302";
+      $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
+      wp_redirect($redirect_url, $redirect_type);
+      exit;
+   }
 
   if (($this->is_ssl_page()) && !is_ssl()) {
-		$redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     $redirect_type = $this->permanent_redirect ? "301" : "302";
+    $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
     wp_redirect($redirect_url, $redirect_type);
     exit;
-	}
+  }
 }
+
+
+
 
   /*
     checks if current page, post or other posttype is supposed to be on SSL.

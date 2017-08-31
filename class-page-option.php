@@ -57,7 +57,16 @@ public function option_html( $post_id ) {
       $value = 1;
       $checked = "checked";
     }
-    echo '<input type="checkbox" '.$checked.' name="rsssl_page_on_https" value="'.$value.'" />'.$option_label.'<br />';
+
+    if (get_the_ID() == (int)get_option( 'page_on_front' ) || get_the_ID() == (int)get_option( 'page_for_posts' )) {
+      if (RSSSL()->rsssl_front_end->home_ssl) {
+        echo __("This is a homepage, which is set in the settings to be loaded over https.", "really-simple-ssl-on-specific-pages");
+      } else {
+        echo __("This is a homepage, which is set in the settings to be loaded over http.", "really-simple-ssl-on-specific-pages");
+      }
+    } else {
+      echo '<input type="checkbox" '.$checked.' name="rsssl_page_on_https" value="'.$value.'" />'.$option_label.'<br />';
+    }
 }
 
 // save data from checkboxes

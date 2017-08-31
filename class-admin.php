@@ -32,7 +32,6 @@ if (!class_exists('rsssl_admin')) {
   //this option is needed for compatibility with the per page plugin.
   public $hsts                              = FALSE;
 
-  public $yoasterror_shown                  = FALSE;
   public $ssl_success_message_shown         = FALSE;
   public $debug							                = TRUE;
 
@@ -137,7 +136,6 @@ if (!class_exists('rsssl_admin')) {
 
     //callbacks for the ajax dismiss buttons
     add_action('wp_ajax_dismiss_success_message', array($this,'dismiss_success_message_callback') );
-    add_action('wp_ajax_dismiss_yoasterror', array($this,'dismiss_yoasterror_callback') );
 
     //handle notices
     add_action('admin_notices', array($this,'show_notices'));
@@ -329,7 +327,6 @@ if (!class_exists('rsssl_admin')) {
   public function get_admin_options(){
     $options = get_option('rlrsssl_options');
     if (isset($options)) {
-      $this->yoasterror_shown                   = isset($options['yoasterror_shown']) ? $options['yoasterror_shown'] : FALSE;
       $this->ssl_success_message_shown          = isset($options['ssl_success_message_shown']) ? $options['ssl_success_message_shown'] : FALSE;
       $this->plugin_db_version                  = isset($options['plugin_db_version']) ? $options['plugin_db_version'] : "1.0";
       $this->debug                              = isset($options['debug']) ? $options['debug'] : FALSE;
@@ -607,7 +604,6 @@ if (!class_exists('rsssl_admin')) {
       'site_has_ssl'                      => $this->site_has_ssl,
       'exclude_pages'                     => $this->exclude_pages,
       'permanent_redirect'                => $this->permanent_redirect,
-      'yoasterror_shown'                  => $this->yoasterror_shown,
       'ssl_success_message_shown'         => $this->ssl_success_message_shown,
       'autoreplace_insecure_links'        => $this->autoreplace_insecure_links,
       'plugin_db_version'                 => $this->plugin_db_version,
@@ -904,18 +900,6 @@ public function show_notices()
           </p></div>
           <?php
         }
-
-        if (!$this->yoasterror_shown && isset($this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"]) && $this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"]) {
-            add_action('admin_print_footer_scripts', array($this, 'insert_dismiss_yoasterror'));
-            ?>
-            <div id="message" class="error fade notice is-dismissible rlrsssl-yoast"><p>
-            <?php _e("Really Simple SSL has a conflict with another plugin.","really-simple-ssl");?><br>
-            <?php _e("The force rewrite titles option in Yoast SEO prevents Really Simple SSL plugin from fixing mixed content.","really-simple-ssl");?><br>
-            <a href="admin.php?page=wpseo_titles"><?php _e("Show me this setting","really-simple-ssl");?></a>
-
-            </p></div>
-            <?php
-          }
       }
     }
 }
@@ -949,33 +933,7 @@ public function insert_dismiss_success() {
   <?php
 }
 
-/**
- * Insert some ajax script to dismis the ssl fail message, and stop nagging about it
- *
- * @since  2.0
- *
- * @access public
- *
- */
 
-public function insert_dismiss_yoasterror() {
-  $ajax_nonce = wp_create_nonce( "really-simple-ssl" );
-  ?>
-  <script type='text/javascript'>
-    jQuery(document).ready(function($) {
-        $(".rlrsssl-yoast.notice.is-dismissible").on("click", ".notice-dismiss", function(event){
-              var data = {
-                'action': 'dismiss_yoasterror',
-                'security': '<?php echo $ajax_nonce; ?>'
-              };
-              $.post(ajaxurl, data, function(response) {
-
-              });
-          });
-    });
-  </script>
-  <?php
-}
 
   /**
    * Process the ajax dismissal of the success message.
@@ -990,22 +948,6 @@ public function dismiss_success_message_callback() {
   $this->ssl_success_message_shown = TRUE;
   $this->save_options();
   wp_die();
-}
-
-/**
- * Process the ajax dismissal of the wpmu subfolder message
- *
- * @since  2.1
- *
- * @access public
- *
- */
-
-public function dismiss_yoasterror_callback() {
-  check_ajax_referer( 'really-simple-ssl', 'security' );
-  $this->yoasterror_shown = TRUE;
-  $this->save_options();
-  wp_die(); // this is required to terminate immediately and return a proper response
 }
 
 
@@ -1303,22 +1245,33 @@ public function add_ssl_pages_page(){
 
   ?>
   <p>
-  <?php if ($this->exclude_pages) {
-    _e("You have Exclude pages from SSL activated.", "really-simple-ssl-on-specific-pages");
-    ?><br><?php
-    _e("The homepage and all pages added here will not be forced over SSL.", "really-simple-ssl-on-specific-pages")." &nbsp;";
-    ?><br><?php
-    _e("To switch this, disable the setting 'exclude pages' on the settings page.", "really-simple-ssl-on-specific-pages")." &nbsp;";
-  }else{
-    _e("Pages added here will be forced over SSL.", "really-simple-ssl-on-specific-pages")." &nbsp;";
-    ?><br><?php
-    _e("To switch this, enable the setting 'exclude pages' on the settings page.", "really-simple-ssl-on-specific-pages")." &nbsp;";
-  }
+    <b>
+    <?php
+    if ($this->exclude_pages) {
+     echo __("Pages added here will be excluded from SSL. You can change this on the settings page.", "really-simple-ssl-on-specific-pages");
+   } else {
+     echo __("Pages added here will be forced over SSL. You can change this on the settings page.", "really-simple-ssl-on-specific-pages")."";
+   }
+     ?>
+     </b></p>
+     <p>
+    <ul>
 
-
-
+  <?php
+    if (RSSSL()->rsssl_front_end->home_ssl) {
+      echo "<li>".__("In the settings you have selected your homepage to be on https", "really-simple-ssl-on-specific-pages")."</li>";
+    } else {
+      echo "<li>".__("In the settings you have selected your homepage to be on http", "really-simple-ssl-on-specific-pages")."</li>";
+    }
   ?>
-
+  </li>
+  <?php if ($this->exclude_pages) {
+    echo "<li>".__("All pages added here will not be forced over SSL.", "really-simple-ssl-on-specific-pages")."</li>";
+  }else{
+    echo "<li>".__("Pages added here will be forced over SSL.", "really-simple-ssl-on-specific-pages")." </li>";
+  }
+  ?>
+  </ul>
 </p>
   <form action="" method="POST">
     <?php wp_nonce_field( 'rsssl_nonce', 'rsssl_nonce' );?>
@@ -1404,7 +1357,6 @@ public function options_validate($input) {
   $newinput['site_has_ssl']                       = $this->site_has_ssl;
 
   $newinput['ssl_success_message_shown']          = $this->ssl_success_message_shown;
-  $newinput['yoasterror_shown']                   = $this->yoasterror_shown;
   $newinput['plugin_db_version']                  = $this->plugin_db_version;
   $newinput['ssl_enabled']                        = $this->ssl_enabled;
   $newinput['ssl_enabled_networkwide']            = $this->ssl_enabled_networkwide;
@@ -1460,16 +1412,19 @@ echo '<input id="rlrsssl_options" name="rlrsssl_options[debug]" size="40" type="
 public function get_option_exclude_pages() {
 $options = get_option('rlrsssl_options');
 echo '<input id="rlrsssl_options" name="rlrsssl_options[exclude_pages]" size="40" type="checkbox" value="1"' . checked( 1, $this->exclude_pages, false ) ." />";
+RSSSL()->rsssl_help->get_help_tip(__("If you enable this option, the pages you select in the SSL pages tab will NOT be loaded over https, but over http. They are excluded from SSL.", "really-simple-ssl"));
 }
 
 public function get_option_permanent_redirect() {
 $options = get_option('rlrsssl_options');
 echo '<input id="rlrsssl_options" name="rlrsssl_options[permanent_redirect]" size="40" type="checkbox" value="1"' . checked( 1, $this->permanent_redirect, false ) ." />";
+RSSSL()->rsssl_help->get_help_tip(__("For your SEO a 301 permanent redirect is best. It is not turned on by default, as it might make it difficult to switch when you are still configuring.", "really-simple-ssl"));
 }
 
 public function get_option_home_ssl() {
 $options = get_option('rlrsssl_options');
 echo '<input id="rlrsssl_options" name="rlrsssl_options[home_ssl]" size="40" type="checkbox" value="1"' . checked( 1, $this->home_ssl, false ) ." />";
+RSSSL()->rsssl_help->get_help_tip(__("The homepage is often a special case, so it's best to define explicitly here if you want the homepage on SSL or not.", "really-simple-ssl"));
 }
 
   /**
@@ -1501,15 +1456,6 @@ echo '<input id="rlrsssl_options" name="rlrsssl_options[home_ssl]" size="40" typ
   }
 
   public function check_plugin_conflicts() {
-    //Yoast conflict only occurs when mixed content fixer is active
-    if ($this->autoreplace_insecure_links && defined('WPSEO_VERSION') ) {
-      $wpseo_options  = get_option("wpseo_titles");
-      $forcerewritetitle = isset($wpseo_options['forcerewritetitle']) ? $wpseo_options['forcerewritetitle'] : FALSE;
-      if ($forcerewritetitle) {
-        $this->plugin_conflict["YOAST_FORCE_REWRITE_TITLE"] = TRUE;
-        if ($this->debug) {$this->trace_log("Force rewrite titles set in Yoast plugin, which prevents really simple ssl from replacing mixed content");}
-      }
-    }
 
     //not necessary anymore after woocommerce 2.5
     if (class_exists('WooCommerce') && defined( 'WOOCOMMERCE_VERSION' ) && version_compare( WOOCOMMERCE_VERSION, '2.5', '<' ) ) {

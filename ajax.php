@@ -61,6 +61,8 @@ function init_ajax_filter($hook) {
     if ( $the_query->have_posts() ) {
       while ( $the_query->have_posts() ) {
         $the_query->the_post();
+        if (get_the_ID() == (int)get_option( 'page_on_front' ) || get_the_ID() == (int)get_option( 'page_for_posts' )) continue;
+
         $dropdown .= '<option value="'.get_the_ID().'">'.get_the_title();
        }
        $dropdown = '<select name="rsssl_selectedpage" id="rsssl_selectedpage"><option value=-1>Select a page</option>'.$dropdown."</select>";

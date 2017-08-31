@@ -4,7 +4,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 4.7
-Stable tag: 1.0.10
+Stable tag: 1.1.0
 
 Premium support and features for Really Simple SSL
 
@@ -27,6 +27,10 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 1.1.0 =
+* Removed yoast conflict notice, as this no longer applies
+* Added the option to separately force the homepage over SSL or not.
+
 = 1.0.9 =
 * Bug fix in mixed content fixer.
 
@@ -57,5 +61,6 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 * Added possibility to include homepage in SSL, with exclude pages option.
 
 == Upgrade notice ==
+If you upgrade to 1.1.0, please check the new homepage setting in settings/ssl.
 
 == Screenshots ==
