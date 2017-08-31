@@ -492,7 +492,10 @@ if (!class_exists('rsssl_admin')) {
    *
    */
 
+
   public function wpconfig_loadbalancer_fix() {
+      if (!current_user_can($this->capability)) return;
+
       $wpconfig_path = $this->find_wp_config_path();
       if (empty($wpconfig_path)) return;
       $wpconfig = file_get_contents($wpconfig_path);
@@ -501,10 +504,13 @@ if (!class_exists('rsssl_admin')) {
       if (strpos($wpconfig, "//Begin Really Simple SSL Load balancing fix")===FALSE ) {
         if (is_writable($wpconfig_path)) {
           $rule  = "\n"."//Begin Really Simple SSL Load balancing fix"."\n";
-          $rule .= 'if (isset($_SERVER["HTTP_X_FORWARDED_PROTO"] ) && "https" == $_SERVER["HTTP_X_FORWARDED_PROTO"] ) {'."\n";
-          $rule .= '$_SERVER["HTTPS"] = "on";'."\n";
-          $rule .= "}"."\n";
-          $rule .= "define('FORCE_SSL_ADMIN', true);";
+          $rule .= '$server_opts = array("HTTP_CLOUDFRONT_FORWARDED_PROTO" => "https", "HTTP_CF_VISITOR"=>"https", "HTTP_X_FORWARDED_PROTO"=>"https", "HTTP_X_FORWARDED_SSL"=>"on", "HTTP_X_FORWARDED_SSL"=>"1");'."\n";
+          $rule .= 'foreach( $server_opts as $option => $value ) {'."\n";
+          $rule .=   'if ( (isset($_ENV["HTTPS"]) && ( "on" == $_ENV["HTTPS"] )) || (isset( $_SERVER[ $option ] ) && ( strpos( $_SERVER[ $option ], $value ) !== false )) ) {'."\n";
+          $rule .=     '$_SERVER[ "HTTPS" ] = "on";'."\n";
+          $rule .=     'break;'."\n";
+          $rule .=   '}'."\n";
+          $rule .= '}'."\n";
           $rule .= "//END Really Simple SSL"."\n";
 
           $insert_after = "<?php";
@@ -671,6 +677,56 @@ if (!class_exists('rsssl_admin')) {
     $this->remove_wpconfig_edit();
   }
 
+  private function check_for_siteurl_in_wpconfig(){
+
+    $wpconfig_path = $this->find_wp_config_path();
+
+    if (empty($wpconfig_path)) return;
+
+    $wpconfig = file_get_contents($wpconfig_path);
+    $homeurl_pattern = '/(define\(\s*\'WP_HOME\'\s*,\s*\'http\:\/\/)/';
+    $siteurl_pattern = '/(define\(\s*\'WP_SITEURL\'\s*,\s*\'http\:\/\/)/';
+
+    $this->wpconfig_siteurl_not_fixed = FALSE;
+    if (preg_match($homeurl_pattern, $wpconfig) || preg_match($siteurl_pattern, $wpconfig) ) {
+        $this->wpconfig_siteurl_not_fixed = TRUE;
+        $this->trace_log("siteurl or home url defines found in wpconfig");
+    }
+  }
+
+  /**
+   * Checks if we are currently on ssl protocol, but extends standard wp with loadbalancer check.
+   *
+   * @since  2.0
+   *
+   * @access public
+   *
+   */
+
+  public function is_ssl_extended(){
+    $server_var = FALSE;
+		$server_opts = array(
+      'HTTP_X_FORWARDED_PROTO'=>'https',
+      'HTTP_CLOUDFRONT_FORWARDED_PROTO' => 'https',
+      'HTTP_CF_VISITOR'=>'https',
+      'HTTP_X_FORWARDED_SSL'=>'on',
+      'HTTP_X_FORWARDED_SSL'=>'1'
+    );
+
+		foreach( $server_opts as $option => $value ) {
+			if ( (isset($_ENV['HTTPS']) && ( 'on' == $_ENV['HTTPS'] ))
+        || (isset( $_SERVER[ $option ] ) && ( strpos( $_SERVER[ $option ], $value ) !== false ) )) {
+				$server_var = TRUE;
+				break;
+			}
+		}
+
+    if (is_ssl() || $server_var){
+      return true;
+    } else {
+      return false;
+    }
+  }
 
 
 
@@ -711,6 +767,54 @@ if (!class_exists('rsssl_admin')) {
          $this->trace_log("SSL test page loaded successfully");
        }
      }
+
+     if ($this->site_has_ssl) {
+       //check the type of ssl, either by parsing the returned string, or by reading the server vars.
+       if ((strpos($filecontents, "#CLOUDFRONT#") !== false) || (isset($_SERVER['HTTP_CLOUDFRONT_FORWARDED_PROTO']) && ($_SERVER['HTTP_CLOUDFRONT_FORWARDED_PROTO'] == 'https'))) {
+         $this->ssl_type = "CLOUDFRONT";
+       } elseif ((strpos($filecontents, "#CLOUDFLARE#") !== false) || (isset($_SERVER['HTTP_CF_VISITOR']) && ($_SERVER['HTTP_CF_VISITOR'] == 'https'))) {
+         $this->ssl_type = "CLOUDFLARE";
+       } elseif ((strpos($filecontents, "#LOADBALANCER#") !== false) || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && ($_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https'))) {
+         $this->ssl_type = "LOADBALANCER";
+       } elseif ((strpos($filecontents, "#CDN#") !== false) || (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && ($_SERVER['HTTP_X_FORWARDED_SSL'] == 'on' || $_SERVER['HTTP_X_FORWARDED_SSL'] == '1'))) {
+         $this->ssl_type = "CDN";
+       } elseif ((strpos($filecontents, "#SERVER-HTTPS-ON#") !== false) || (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == 'on')) {
+         $this->ssl_type = "SERVER-HTTPS-ON";
+       } elseif ((strpos($filecontents, "#SERVER-HTTPS-1#") !== false) || (isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == '1')) {
+         $this->ssl_type = "SERVER-HTTPS-1";
+       } elseif ((strpos($filecontents, "#SERVERPORT443#") !== false) || (isset($_SERVER['SERVER_PORT']) && ( '443' == $_SERVER['SERVER_PORT'] ))) {
+         $this->ssl_type = "SERVERPORT443";
+       } elseif ((strpos($filecontents, "#ENVHTTPS#") !== false) || (isset($_ENV['HTTPS']) && ( 'on' == $_ENV['HTTPS'] ))) {
+          $this->ssl_type = "ENVHTTPS";
+       } elseif ((strpos($filecontents, "#NO KNOWN SSL CONFIGURATION DETECTED#") !== false)) {
+         //if we are here, SSL was detected, but without any known server variables set.
+         //So we can use this info to set a server variable ourselfes.
+         if (!$this->wpconfig_has_fixes()) {
+           $this->no_server_variable = TRUE;
+         }
+         $this->trace_log("No server variable detected ");
+         $this->ssl_type = "NA";
+       } else {
+         //no valid response, so set to NA
+         $this->ssl_type = "NA";
+       }
+
+       //check for is_ssl()
+       if ( (!$this->is_ssl_extended() &&
+            (strpos($filecontents, "#SERVER-HTTPS-ON#") === false) &&
+            (strpos($filecontents, "#SERVER-HTTPS-1#") === false) &&
+            (strpos($filecontents, "#SERVERPORT443#") === false)) || (!is_ssl() && $this->is_ssl_extended())) {
+         //when is_ssl would return false, we should add some code to wp-config.php
+         if (!$this->wpconfig_has_fixes()) {
+           $this->trace_log("is_ssl() will return false: wp-config fix needed");
+           $this->do_wpconfig_loadbalancer_fix = TRUE;
+         }
+       }
+
+       $this->trace_log("ssl type: ".$this->ssl_type);
+     }
+     $this->check_for_siteurl_in_wpconfig();
+
 
      $this->save_options();
    }
