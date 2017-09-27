@@ -157,9 +157,11 @@ if (!class_exists('rsssl_admin')) {
     }
 
     if (is_multisite() && isset($_POST['rsssl_do_activate_ssl_networkwide'])) {
-      $sites = wp_get_sites();
+
+      $sites = $this->get_sites_bw_compatible();
+
       foreach ( $sites as $site ) {
-        switch_to_blog( $site[ 'blog_id' ] );
+        $this->switch_to_blog_bw_compatible($site);
         $this->ssl_enabled = true;
         $this->save_options();
         restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
@@ -187,6 +189,30 @@ if (!class_exists('rsssl_admin')) {
       return false;
     } else {
       return true;
+    }
+  }
+
+
+  //change deprecated function depending on version.
+
+  public function get_sites_bw_compatible(){
+    global $wp_version;
+    $sites = ($wp_version >= 4.6 ) ? get_sites() : wp_get_sites();
+    return $sites;
+  }
+
+  /*
+        The new get_sites function returns an object.
+
+  */
+
+  public function switch_to_blog_bw_compatible($site){
+
+    global $wp_version;
+    if ($wp_version >= 4.6 ) {
+      switch_to_blog( $site->blog_id );
+    } else {
+      switch_to_blog( $site[ 'blog_id' ] );
     }
   }
 
@@ -545,9 +571,9 @@ if (!class_exists('rsssl_admin')) {
     if (!is_multisite()) return FALSE;
     //we check this manually, as the SUBDOMAIN_INSTALL constant of wordpress might return false for domain mapping configs
     $is_subfolder = FALSE;
-    $sites = wp_get_sites();
+    $sites = $this->get_sites_bw_compatible();
     foreach ( $sites as $site ) {
-      switch_to_blog( $site[ 'blog_id' ] );
+      $this->switch_to_blog_bw_compatible($site);
       if ($this->is_subfolder(home_url())) {
         $is_subfolder=TRUE;
       }
@@ -662,16 +688,19 @@ if (!class_exists('rsssl_admin')) {
     $this->ssl_enabled                          = FALSE;
     $this->save_options();
 
+
     if ($networkwide) {
       $this->ssl_enabled_networkwide              = FALSE;
       $this->selected_networkwide_or_per_site     = FALSE;
-      $sites = wp_get_sites();
+
+      $sites = $this->get_sites_bw_compatible();
       foreach ( $sites as $site ) {
-        switch_to_blog( $site[ 'blog_id' ] );
+        $this->switch_to_blog_bw_compatible($site);
         $this->ssl_enabled = false;
         $this->save_options();
         restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
       }
+
     }
 
     $this->remove_wpconfig_edit();

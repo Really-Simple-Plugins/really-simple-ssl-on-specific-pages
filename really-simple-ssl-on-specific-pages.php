@@ -54,6 +54,9 @@ class REALLY_SIMPLE_SSL_PP {
         self::$instance->really_simple_ssl  = new rsssl_admin();
         self::$instance->page_option        = new rsssl_page_option();
         self::$instance->rsssl_help         = new rsssl_help();
+        if ( is_multisite() ) {
+          self::$instance->rsssl_multisite = new rsssl_multisite();
+        }
 
         // Backwards compatibility for add-ons
         global $rsssl_cache, $rsssl_url, $really_simple_ssl, $rsssl_help, $page_option, $rssslpp_licensing;
@@ -94,6 +97,10 @@ class REALLY_SIMPLE_SSL_PP {
       require_once( rsssl_pp_path .  '/class-url.php' );
       require_once( rsssl_pp_path .  '/ajax.php' );
       require_once( rsssl_pp_path .  '/class-page-option.php' );
+
+      if ( is_multisite() ) {
+        require_once( rsssl_path .  'class-multisite.php' );
+      }
       }
     }
 

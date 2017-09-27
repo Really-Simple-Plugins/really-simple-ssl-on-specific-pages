@@ -64,10 +64,10 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
     $page = get_page_by_path( $path , OBJECT, get_post_types() );
   	if (!empty($page))  {
-  		if (!$this->is_ssl_page($page->ID)) {
+  		if (!$this->is_ssl_page($page->ID, $path)) {
   			return str_replace( 'https://', 'http://', $url );
   		}
-  		if ($this->is_ssl_page($page->ID)) {
+  		if ($this->is_ssl_page($page->ID, $path)) {
   			return str_replace( 'http://', 'https://', $url );
   		}
   	}
@@ -114,7 +114,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     if not exclude url enabled, only true for pages in the pages list.
   */
 
-  private function is_ssl_page($post_id=null){
+  private function is_ssl_page($post_id=null, $path=''){
     //when pages are excluded from SSL, default SSL
     $sslpage = FALSE;
     if ($this->exclude_pages) {
@@ -134,6 +134,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     if ($this->exclude_pages)
         $sslpage = !$sslpage;
 
+    $sslpage = apply_filters('rsssl_per_page_is_ssl_page', $sslpage, $post_id, $path);
     return $sslpage;
   }
 
@@ -162,6 +163,23 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     }
 
   }
+
+// add_filter('rsssl_per_page_is_ssl_page', 'rsssl_check_query_var', 10, 3);
+// function rsssl_check_query_var($sslpage, $post_id, $path){
+//   //if the query variable ‘play’ is appended, tell the plugin to set the current page to http: $sslpage = false
+//  //this only applies when the current post is the same as the checked post, otherwise this would apply when the url contains the var, but we are checking another post.
+//   global $post;
+//   if ($post && ($post_id==$post->ID) && isset($_GET['play'])) {
+//     $sslpage = false;
+//   }
+//
+//   //if path was set, check for the variable 'play' in the path
+//   if (str_pos($path, 'play')!==false)  {
+//     $sslpage = false;
+//   }
+//
+//   return $sslpage
+// }
 
 
    /**
