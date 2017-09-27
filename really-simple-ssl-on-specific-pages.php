@@ -99,7 +99,7 @@ class REALLY_SIMPLE_SSL_PP {
       require_once( rsssl_pp_path .  '/class-page-option.php' );
 
       if ( is_multisite() ) {
-        require_once( rsssl_path .  'class-multisite.php' );
+        require_once( rsssl_pp_path .  'class-multisite.php' );
       }
       }
     }
