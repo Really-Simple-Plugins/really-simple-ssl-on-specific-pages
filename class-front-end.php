@@ -112,6 +112,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
     if exclude url enabled, true for all pages EXCEPT in the pages list
     if not exclude url enabled, only true for pages in the pages list.
+
   */
 
   private function is_ssl_page($post_id=null, $path=''){

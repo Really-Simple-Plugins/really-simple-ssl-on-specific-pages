@@ -180,12 +180,5 @@ public function is_per_site_activated_multisite_subfolder_install() {
 
 
 
-
-
-
-
-
-
-
 } //class closure
 }
