@@ -3,7 +3,7 @@
  * Plugin Name: Really Simple SSL on specific pages
  * Plugin URI: https://www.really-simple-ssl.com
  * Description: Lightweight plugin without any setup to make your site ssl proof
- * Version: 1.1.2
+ * Version: 1.1.3
  * Text Domain: really-simple-ssl-specific-pages
  * Domain Path: /languages
  * Author: Rogier Lankhorst
@@ -26,6 +26,7 @@ class REALLY_SIMPLE_SSL_PP {
     public $rssslpp_licensing;
     public $page_option;
     public $rsssl_url;
+    public $rsssl_server;
 
     private function __construct() {}
 
@@ -54,18 +55,20 @@ class REALLY_SIMPLE_SSL_PP {
         self::$instance->really_simple_ssl  = new rsssl_admin();
         self::$instance->page_option        = new rsssl_page_option();
         self::$instance->rsssl_help         = new rsssl_help();
+        self::$instance->rsssl_server       = new rsssl_server();
         if ( is_multisite() ) {
           self::$instance->rsssl_multisite = new rsssl_multisite();
         }
 
         // Backwards compatibility for add-ons
-        global $rsssl_cache, $rsssl_url, $really_simple_ssl, $rsssl_help, $page_option, $rssslpp_licensing;
+        global $rsssl_cache, $rsssl_url, $really_simple_ssl, $rsssl_help, $page_option, $rssslpp_licensing, $rsssl_server;
         $rssslpp_licensing    = self::$instance->rssslpp_licensing;
         $rsssl_url            = self::$instance->rsssl_url;
         $rsssl_cache          = self::$instance->rsssl_cache;
         $really_simple_ssl    = self::$instance->really_simple_ssl;
         $page_option          = self::$instance->page_option;
         $rsssl_help           = self::$instance->rsssl_help;
+        $rsssl_server         = self::$instance->rsssl_server;
       }
 
       self::$instance->hooks();
@@ -97,6 +100,7 @@ class REALLY_SIMPLE_SSL_PP {
       require_once( rsssl_pp_path .  '/class-url.php' );
       require_once( rsssl_pp_path .  '/ajax.php' );
       require_once( rsssl_pp_path .  '/class-page-option.php' );
+      require_once( rsssl_pp_path .  'class-server.php' );
 
       if ( is_multisite() ) {
         require_once( rsssl_pp_path .  'class-multisite.php' );
