@@ -74,6 +74,29 @@ if (!class_exists('rsssl_admin')) {
     return self::$_this;
   }
 
+
+  /*
+   * This function is needed for compatibility with Really Simple SSL pro
+   * */
+
+  public function contains_hsts() {
+    if (!file_exists($this->ABSpath.".htaccess")) {
+      $this->trace_log(".htaccess not found in ".$this->ABSpath);
+      $result = $this->hsts; //just return the setting.
+    } else {
+      $htaccess = file_get_contents($this->ABSpath.".htaccess");
+
+      preg_match("/Strict-Transport-Security/", $htaccess, $check);
+      if(count($check) === 0){
+        $result = false;
+      } else {
+        $result = true;
+      }
+    }
+
+    return $result;
+  }
+
   /**
    * Initializes the admin class
    *
