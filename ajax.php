@@ -47,7 +47,7 @@ function init_ajax_filter($hook) {
     $pagelist = "";
 
     foreach($really_simple_ssl->ssl_pages as $page_id) {
-      $pagelist .= '<tr><td width="20px"><img class="rsssl_remove_ssl_page icons" id="'.$page_id.'" src="'.$really_simple_ssl->plugin_url.'img/delete-icon.png" alt="delete"></td><td width="*">'.get_the_title($page_id).'</td></tr>';
+      $pagelist .= '<tr><td width="20px"><img class="rsssl_remove_ssl_page rsssl-icons" id="'.$page_id.'" src="'.$really_simple_ssl->plugin_url.'img/delete-icon.png" alt="delete"></td><td width="*">'.get_the_title($page_id).'</td></tr>';
     }
     $pagelist = '<table class="wp-list-table widefat fixed striped">'.$pagelist."</table>";
     $dropdown = "";
