@@ -98,7 +98,6 @@ class REALLY_SIMPLE_SSL_PP {
       require_once( rsssl_pp_path .  '/class-admin.php' );
       require_once( rsssl_pp_path .  '/class-cache.php' );
       require_once( rsssl_pp_path .  '/class-url.php' );
-      require_once( rsssl_pp_path .  '/ajax.php' );
       require_once( rsssl_pp_path .  '/class-page-option.php' );
       require_once( rsssl_pp_path .  'class-server.php' );
 
