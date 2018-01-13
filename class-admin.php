@@ -1367,12 +1367,12 @@ public function setup_admin_page(){
     add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
 
     add_action('admin_init', array($this, 'load_translation'),20);
-    add_filter('rsssl_tabs', array($this,'add_ssl_pages_tab'),10,3 );
+    //add_filter('rsssl_tabs', array($this,'add_ssl_pages_tab'),10,3 );
 
     global $rssslpp_licensing;
     add_action('show_tab_license', array($rssslpp_licensing, 'add_license_page'));
     add_filter('rsssl_tabs', array($rssslpp_licensing,'add_license_tab'),20,3 );
-    add_action('show_tab_ssl_pages', array($this, 'add_ssl_pages_page'));
+    //add_action('show_tab_ssl_pages', array($this, 'add_ssl_pages_page'));
 
     add_action('rsssl_configuration_page', array($this, 'configuration_page_more'));
 
@@ -1402,9 +1402,9 @@ public function add_ssl_pages_page(){
     <b>
     <?php
     if ($this->exclude_pages) {
-     echo __("Pages added here will be excluded from SSL. You can change this on the settings page.", "really-simple-ssl-on-specific-pages");
+     echo __("Pages shown here will be excluded from SSL. You can change this on the settings page.", "really-simple-ssl-on-specific-pages");
    } else {
-     echo __("Pages added here will be forced over SSL. You can change this on the settings page.", "really-simple-ssl-on-specific-pages")."";
+     echo __("Pages shown here will be forced over SSL. You can change this on the settings page.", "really-simple-ssl-on-specific-pages")."";
    }
      ?>
      </b></p>
@@ -1422,30 +1422,26 @@ public function add_ssl_pages_page(){
   <?php if ($this->exclude_pages) {
     echo "<li>".__("All pages added here will not be forced over SSL.", "really-simple-ssl-on-specific-pages")."</li>";
   }else{
-    echo "<li>".__("Pages added here will be forced over SSL.", "really-simple-ssl-on-specific-pages")." </li>";
+    echo "<li>".__("Pages shown here will be forced over SSL.", "really-simple-ssl-on-specific-pages")." </li>";
   }
   ?>
   </ul>
 </p>
   <form action="" method="POST">
     <?php wp_nonce_field( 'rsssl_nonce', 'rsssl_nonce' );?>
-    <select id="rsssl-posttype">
-      <?php foreach($post_types as $post_type) {?>
-              <option id="<?php echo $post_type?>"><?php echo $post_type;?></option>
-      <?php } ?>
-    </select>
+
     <span id="rsssl-posts"></span>
-    <button type="button" class='button button-primary rsssl' id="rsssl_add_ssl_page" name="rsssl_add_ssl_page"><?php _e("Add", "really-simple-ssl-pro");?></button>
+
     <span id="rsssl-pagelist"></span>
   </form>
 
   <?php
 }
 
-public function add_ssl_pages_tab($tabs){
-  $tabs['ssl_pages'] = __("SSL pages","really-simple-ssl-pro");
-  return $tabs;
-}
+//public function add_ssl_pages_tab($tabs){
+//  //$tabs['ssl_pages'] = __("SSL pages","really-simple-ssl-pro");
+//  return $tabs;
+//}
 
 
 public function configuration_page_more(){

@@ -29,7 +29,7 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 
 == Changelog ==
 = 1.1.4 =
-* Fix: icon style in pages list updated to latest prefixed css class
+* Tweak: moved enabling and disabling of https to the posts/pages overview page, bulk edit mode
 * Fix: missing function contains_hsts caused compatibility issue with pro plugin
 
 = 1.1.3 =
