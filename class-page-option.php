@@ -60,6 +60,7 @@ if (!class_exists('rsssl_page_option')) {
       global $really_simple_ssl;
 
       $https = in_array($post_id, $really_simple_ssl->ssl_pages);
+      $https =  ($really_simple_ssl->exclude_pages) ? !$https : $https;
 
       if ($https) {
           $img = __( 'on', 'really-simple-ssl-on-specific-pages' );//'<img class="umc-sync-icon" title="' . __("Datum doorgegeven", "really-simple-ssl-on-specific-pages"). '" src="'.  'assets/img/check-icon.png" >';
