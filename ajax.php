@@ -3,6 +3,12 @@
 $filter_vars;
 
   /**
+   *
+   * Not in use any more
+   *
+   *
+   *
+   *
     * Initialization. Add our script if needed on this page.
   */
 
@@ -51,24 +57,24 @@ function init_ajax_filter($hook) {
     }
     $pagelist = '<table class="wp-list-table widefat fixed striped">'.$pagelist."</table>";
     $dropdown = "";
-    $args = array(
-      'post_type' => $filter_vars->post_type,
-      'posts_per_page' => -1,
-    );
-
-    $the_query = new WP_Query( $args );
-
-    if ( $the_query->have_posts() ) {
-      while ( $the_query->have_posts() ) {
-        $the_query->the_post();
-        if (get_the_ID() == (int)get_option( 'page_on_front' ) || get_the_ID() == (int)get_option( 'page_for_posts' )) continue;
-
-        $dropdown .= '<option value="'.get_the_ID().'">'.get_the_title();
-       }
-       $dropdown = '<select name="rsssl_selectedpage" id="rsssl_selectedpage"><option value=-1>Select a page</option>'.$dropdown."</select>";
-    } else {
-      $dropdown = "No pages found";
-    }
+//    $args = array(
+//      'post_type' => $filter_vars->post_type,
+//      'posts_per_page' => -1,
+//    );
+//
+//    $the_query = new WP_Query( $args );
+//
+//    if ( $the_query->have_posts() ) {
+//      while ( $the_query->have_posts() ) {
+//        $the_query->the_post();
+//        if (get_the_ID() == (int)get_option( 'page_on_front' ) || get_the_ID() == (int)get_option( 'page_for_posts' )) continue;
+//
+//        $dropdown .= '<option value="'.get_the_ID().'">'.get_the_title();
+//       }
+//       $dropdown = '<select name="rsssl_selectedpage" id="rsssl_selectedpage"><option value=-1>Select a page</option>'.$dropdown."</select>";
+//    } else {
+//      $dropdown = "No pages found";
+//    }
 
     wp_reset_postdata();
     $output = array('dropdown' => $dropdown,'pagelist' => $pagelist);
