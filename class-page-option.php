@@ -13,7 +13,7 @@ if (!class_exists('rsssl_page_option')) {
     // register the meta box
     add_action( 'add_meta_boxes', array($this, 'register_https_option') );
     add_action( 'save_post', array($this, 'save_option' ));
-    add_action('plugins_loaded', array($this, 'init'), 20, 3);
+    add_action('wp', array($this, 'init'), 20, 3);
 
     add_action( 'admin_notices', array($this, 'bulk_action_admin_notice') );
   }

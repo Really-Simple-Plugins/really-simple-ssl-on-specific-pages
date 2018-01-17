@@ -1506,7 +1506,7 @@ echo '<input id="rlrsssl_options" name="rlrsssl_options[debug]" size="40" type="
 public function get_option_exclude_pages() {
 $options = get_option('rlrsssl_options');
 echo '<input id="rlrsssl_options" name="rlrsssl_options[exclude_pages]" size="40" type="checkbox" value="1"' . checked( 1, $this->exclude_pages, false ) ." />";
-RSSSL()->rsssl_help->get_help_tip(__("If you enable this option, the pages you select in the SSL pages tab will NOT be loaded over https, but over http. They are excluded from SSL.", "really-simple-ssl"));
+RSSSL()->rsssl_help->get_help_tip(__("If you enable this option, you can exclude pages from SSL instead of adding pages to SSL.", "really-simple-ssl"));
 }
 
 public function get_option_permanent_redirect() {
