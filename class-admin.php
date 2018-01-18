@@ -60,6 +60,7 @@ if (!class_exists('rsssl_admin')) {
 
     self::$_this = $this;
 
+    $this->upgrade();
     $this->get_options();
     $this->get_admin_options();
     $this->ABSpath = $this->getABSPATH();
@@ -74,6 +75,32 @@ if (!class_exists('rsssl_admin')) {
     return self::$_this;
   }
 
+
+  public function upgrade(){
+      //migrate SSL pages top post meta
+      $options = get_option('rlrsssl_options');
+      //only upgrade if the option is still there
+      if (isset($options['ssl_pages'])) {
+          $ssl_pages = $options['ssl_pages'];
+          foreach($ssl_pages as $ssl_page_id) {
+              update_post_meta($ssl_page_id, "rsssl_ssl_page", true);
+          }
+
+          //create a backup
+          update_option("rsssl_backup_ssl_pages", $options['ssl_pages']);
+          //now remove it
+          unset($options['ssl_pages']);
+          update_option('rlrsssl_options', $options);
+      }
+
+      if (defined("RSSSL_RESTORE_SSL_PAGES") && RSSSL_RESTORE_SSL_PAGES){
+          $ssl_pages = get_option("rsssl_backup_ssl_pages", $options['ssl_pages']);
+          foreach($ssl_pages as $ssl_page_id) {
+              update_post_meta($ssl_page_id, "rsssl_ssl_page", true);
+          }
+      }
+
+  }
 
   /*
    * This function is needed for compatibility with Really Simple SSL pro
@@ -664,7 +691,6 @@ if (!class_exists('rsssl_admin')) {
       'plugin_db_version'                 => $this->plugin_db_version,
       'debug'                             => $this->debug,
       'ssl_enabled'                       => $this->ssl_enabled,
-      'ssl_pages'                         => $this->ssl_pages,
       'home_ssl'                          => $this->home_ssl,
     );
 
@@ -907,6 +933,18 @@ if (!class_exists('rsssl_admin')) {
    }
 
 
+   public function get_ssl_pages(){
+
+        global $wpdb;
+        $sql = "select post_id from ".$wpdb->prefix."postmeta where meta_key = 'rsssl_ssl_page' and meta_value=TRUE";
+        $post_ids = $wpdb->get_results($sql);
+        if (empty($post_ids)) {
+            return false;
+        }
+
+        return  wp_list_pluck($post_ids, "post_id");
+   }
+
   /**
   *
   *  @since 2.2
@@ -915,9 +953,10 @@ if (!class_exists('rsssl_admin')) {
   */
 
   public function mixed_content_fixer_detected(){
-    global $rsssl_url;
-    if (!empty($this->ssl_pages)) {
-        $ssl_page = reset($this->ssl_pages);
+
+    $ssl_pages = $this->get_ssl_pages();
+    if ($ssl_pages) {
+        $ssl_page = reset($ssl_pages);
         $url = get_permalink($ssl_page);
         //check if the mixed content fixer is active
         $status = 0;
@@ -1214,9 +1253,9 @@ public function settings_page() {
             <?php
 
             ?>
-            <td><?php echo !empty($this->ssl_pages) ? $this->img("success") : $this->img("error");?></td>
+            <td><?php echo $this->get_ssl_pages() ? $this->img("success") : $this->img("error");?></td>
             <td><?php
-                  if (empty($this->ssl_pages)) {
+                  if (!$this->get_ssl_pages()) {
                     _e("You do not have any pages with SSL enabled yet. Start adding them on the Add SSL pages tab","really-simple-ssl")."&nbsp;";
                   } else {
                     _e("Great! you already have some pages on SSL","really-simple-ssl")."&nbsp;";
@@ -1227,7 +1266,7 @@ public function settings_page() {
           <?php }
           /* check if the mixed content fixer is working */
 
-          if ($this->ssl_enabled && !empty($this->ssl_pages) && $this->autoreplace_insecure_links && $this->site_has_ssl) { ?>
+          if ($this->ssl_enabled && $this->get_ssl_pages() && $this->autoreplace_insecure_links && $this->site_has_ssl) { ?>
           <tr>
             <td><?php echo $this->mixed_content_fixer_detected() ? $this->img("success") : $this->img("error");?></td>
             <td><?php
@@ -1455,7 +1494,6 @@ public function options_validate($input) {
   $newinput['ssl_enabled']                        = $this->ssl_enabled;
   $newinput['ssl_enabled_networkwide']            = $this->ssl_enabled_networkwide;
   $newinput['selected_networkwide_or_per_site']   = $this->selected_networkwide_or_per_site;
-  $newinput['ssl_pages']                          = $this->ssl_pages;
 
   if (!empty($input['autoreplace_insecure_links']) && $input['autoreplace_insecure_links']=='1') {
     $newinput['autoreplace_insecure_links'] = TRUE;
