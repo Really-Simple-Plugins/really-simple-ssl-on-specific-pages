@@ -1069,7 +1069,8 @@ public function show_notices()
       <?php _e("Your site url is https://.","really-simple-ssl");?><br>
       <?php _e("Really Simple SSL per page will only work when the site url is http://. Please change your site url in http://","really-simple-ssl");?><br>
       </p></div>
-    <?php }
+      <?php
+    }
 
     // if strpos(is_ssl(), "https://"){
     //
