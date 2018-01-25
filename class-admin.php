@@ -1071,10 +1071,6 @@ public function show_notices()
       </p></div>
       <?php
     }
-
-    // if strpos(is_ssl(), "https://"){
-    //
-    // }
 }
 
   /**
