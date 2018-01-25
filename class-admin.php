@@ -1063,8 +1063,6 @@ public function show_notices()
     $siteurl_ssl = get_option('siteurl');
     // $homeurl_ssl = get_option('home');
 
-    $siteurl_ssl = "https://nos.de";
-
     if (strpos($siteurl_ssl, 'https://') !== FALSE) {
       ?>
       <div id="message" class="error fade notice"><p>
