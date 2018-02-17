@@ -5,7 +5,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 4.9
-Stable tag: 1.1.4
+Stable tag: 1.1.5
 
 Premium support and features for Really Simple SSL
 
@@ -28,6 +28,9 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 1.1.5 =
+* Fix: when homepage on http, and exclude pages on, homepage redirected to https anyway
+
 = 1.1.4 =
 * Tweak: moved enabling and disabling of https to the posts/pages overview page, bulk edit mode
 * Fix: missing function contains_hsts caused compatibility issue with pro plugin
