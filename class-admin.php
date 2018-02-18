@@ -55,6 +55,7 @@ if (!class_exists('rsssl_admin')) {
   private $pro_url = "https://www.really-simple-ssl.com/pro";
 
   function __construct() {
+
     if ( isset( self::$_this ) )
         wp_die( sprintf( __( '%s is a singleton class and you cannot create a second instance.','really-simple-ssl' ), get_class( $this ) ) );
 
@@ -1096,6 +1097,18 @@ public function show_notices()
           <?php
         }
       }
+    }
+
+    $siteurl_ssl = get_option('siteurl');
+    // $homeurl_ssl = get_option('home');
+
+    if (strpos($siteurl_ssl, 'https://') !== FALSE) {
+      ?>
+      <div id="message" class="error fade notice"><p>
+      <?php _e("Your site url is https://.","really-simple-ssl");?><br>
+      <?php _e("Really Simple SSL per page will only work when the site url is http://. Please change your site url in http://","really-simple-ssl");?><br>
+      </p></div>
+      <?php
     }
 }
 

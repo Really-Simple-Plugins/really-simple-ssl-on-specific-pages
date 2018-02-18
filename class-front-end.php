@@ -84,23 +84,37 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
 
  public function redirect_to_ssl() {
-   $redirect_to_ssl = false;
+     $redirect_type = $this->permanent_redirect ? "301" : "302";
 
-   if ((is_home() || is_front_page()) && $this->home_ssl && !is_ssl()) {
-     $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-      $redirect_type = $this->permanent_redirect ? "301" : "302";
-      $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
-      wp_redirect($redirect_url, $redirect_type);
-      exit;
-   }
+    if ((is_home() || is_front_page()) && $this->home_ssl && !is_ssl()) {
+        $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
+        wp_redirect($redirect_url, $redirect_type);
+        exit;
+    }
 
-  if (($this->is_ssl_page()) && !is_ssl()) {
-    $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-    $redirect_type = $this->permanent_redirect ? "301" : "302";
-    $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
-    wp_redirect($redirect_url, $redirect_type);
-    exit;
-  }
+     //if it's the homepage, and homepage should not be SSL, but it is right now, redirect to http
+     if ((is_home() || is_front_page()) && !$this->home_ssl && is_ssl()) {
+         $redirect_url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+         $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
+         wp_redirect($redirect_url, $redirect_type);
+         exit;
+     }
+
+    if ($this->is_ssl_page() && !is_ssl()) {
+        $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
+        wp_redirect($redirect_url, $redirect_type);
+        exit;
+    }
+
+    //ssl, but not an ssl page? redirect to http. Might cause loops when https redirect is enabled.
+     if (!$this->is_ssl_page() && is_ssl()) {
+         $redirect_url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+         $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
+         wp_redirect($redirect_url, $redirect_type);
+         exit;
+     }
 }
 
 
@@ -121,16 +135,25 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
       if ($post) $post_id = $post->ID;
     }
 
-    $sslpage = false;
-    if ($post_id) {
-        $sslpage = get_post_meta($post_id, "rsssl_ssl_page", true);
+    //homepage needs special treatment
+    if ($this->is_home($post_id)) {
+        //should not be inverted for "exclude pages for ssl"
+        return $this->home_ssl;
+
+    } else {
+
+        $sslpage = false;
+        if ($post_id) {
+            $sslpage = get_post_meta($post_id, "rsssl_ssl_page", true);
+        }
+
+        if ($this->exclude_pages)
+            $sslpage = !$sslpage;
+
+        $sslpage = apply_filters('rsssl_per_page_is_ssl_page', $sslpage, $post_id, $path);
+        return $sslpage;
     }
 
-    if ($this->exclude_pages)
-        $sslpage = !$sslpage;
-
-    $sslpage = apply_filters('rsssl_per_page_is_ssl_page', $sslpage, $post_id, $path);
-    return $sslpage;
   }
 
 
@@ -200,6 +223,11 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
      }
    }
 
-
+   public function is_home($post_id){
+       if ($post_id == (int)get_option( 'page_on_front' ) || $post_id == (int)get_option( 'page_for_posts' )) {
+           return true;
+       }
+       return false;
+   }
 
 }}

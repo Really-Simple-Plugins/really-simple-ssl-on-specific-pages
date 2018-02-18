@@ -32,6 +32,7 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 = 2.0.0 =
 * Switched SSL pages to the postmeta, which is more robust
 * Migration procedure
+* Fix: when homepage on http, and exclude pages on, homepage redirected to https anyway
 
 = 1.1.4 =
 * Tweak: moved enabling and disabling of https to the posts/pages overview page, bulk edit mode
