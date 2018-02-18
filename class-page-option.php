@@ -13,7 +13,7 @@ if (!class_exists('rsssl_page_option')) {
     // register the meta box
     add_action( 'add_meta_boxes', array($this, 'register_https_option') );
     add_action( 'save_post', array($this, 'save_option' ));
-    add_action('wp', array($this, 'init'), 20, 3);
+    add_action('wp_loaded', array($this, 'init'), 20, 3);
 
     add_action( 'admin_notices', array($this, 'bulk_action_admin_notice') );
   }
@@ -58,8 +58,7 @@ if (!class_exists('rsssl_page_option')) {
   public function https_column( $column, $post_id ) {
       if ($column!=='https') return;
       global $really_simple_ssl;
-
-      $https = in_array($post_id, $really_simple_ssl->ssl_pages);
+      $https = get_post_meta($post_id, "rsssl_ssl_page", true);
       $https =  ($really_simple_ssl->exclude_pages) ? !$https : $https;
 
       if ($https) {
@@ -96,22 +95,18 @@ if (!class_exists('rsssl_page_option')) {
          foreach ( $post_ids as $post_id ) {
              //handle frontpage differently
              if ($post_id == get_option( 'page_on_front')) continue;
-             if ( !in_array($post_id, $really_simple_ssl->ssl_pages)) $really_simple_ssl->ssl_pages[] = $post_id;
+             update_post_meta($post_id, "rsssl_ssl_page", true);
          }
       }
 
       if (($enable && $exclude) || ($disable && !$exclude)){
-          //remove these from array
+          //remove these
           foreach ( $post_ids as $post_id ) {
               //handle frontpage differently
               if ($post_id == get_option( 'page_on_front')) continue;
-              if(($key = array_search($post_id, $really_simple_ssl->ssl_pages)) !== false) {
-                  unset($really_simple_ssl->ssl_pages[$key]);
-              }
+              update_post_meta( $post_id, "rsssl_ssl_page", false);
           }
       }
-
-      $really_simple_ssl->save_options();
 
       $redirect_to = add_query_arg( 'change_type', $doaction, $redirect_to );
       $redirect_to = add_query_arg( 'changed_items', count( $post_ids ), $redirect_to );
@@ -165,7 +160,7 @@ public function option_html( $post_id ) {
     }
 
 
-    if (in_array($current_page_id, $really_simple_ssl->ssl_pages)) {
+    if (get_post_meta($current_page_id, "rsssl_ssl_page", true)) {
       $value = 1;
       $checked = "checked";
     }
@@ -193,8 +188,6 @@ public function save_option() {
     if (!isset($_POST['rsssl_nonce']) || !wp_verify_nonce( $_POST['rsssl_nonce'], 'rsssl_nonce' ) )
         return;
 
-    global $really_simple_ssl;
-    $really_simple_ssl->get_admin_options();
     global $post;
     $current_page_id = $post->ID;
 
@@ -207,14 +200,10 @@ public function save_option() {
 
     // now store data in custom fields based on checkboxes selected
     if ( isset( $_POST['rsssl_page_on_https'] ) ) {
-      if ( !in_array($current_page_id, $really_simple_ssl->ssl_pages)) $really_simple_ssl->ssl_pages[] = $current_page_id;
+        update_post_meta($current_page_id, "rsssl_ssl_page", true);
     } else {
-      if(($key = array_search($current_page_id, $really_simple_ssl->ssl_pages)) !== false) {
-        unset($really_simple_ssl->ssl_pages[$key]);
-      }
+        update_post_meta($current_page_id, "rsssl_ssl_page", false);
     }
-
-    $really_simple_ssl->save_options();
 
   }
 }//class closure

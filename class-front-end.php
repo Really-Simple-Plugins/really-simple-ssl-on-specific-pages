@@ -7,7 +7,6 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     public $site_has_ssl                    = FALSE;
     public $autoreplace_insecure_links      = TRUE;
     public $http_urls                       = array();
-    public $ssl_pages                       = array();
     public $exclude_pages                   = FALSE;
     public $permanent_redirect              = FALSE;
     public $home_ssl;
@@ -144,7 +143,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
         $sslpage = false;
         if ($post_id) {
-            if (in_array($post_id, $this->ssl_pages)) $sslpage = TRUE;
+            $sslpage = get_post_meta($post_id, "rsssl_ssl_page", true);
         }
 
         if ($this->exclude_pages)
@@ -175,7 +174,6 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
       $this->permanent_redirect           = isset($options['permanent_redirect']) ? $options['permanent_redirect'] : FALSE;
       $this->autoreplace_insecure_links   = isset($options['autoreplace_insecure_links']) ? $options['autoreplace_insecure_links'] : TRUE;
       $this->ssl_enabled                  = isset($options['ssl_enabled']) ? $options['ssl_enabled'] : $this->site_has_ssl;
-      $this->ssl_pages                    = isset($options['ssl_pages']) ? $options['ssl_pages'] : array();
       //with exclude pages from ssl, homepage is default https.
       $this->home_ssl                     = isset($options['home_ssl']) ? $options['home_ssl'] : $this->exclude_pages;
     }
@@ -230,7 +228,5 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
        }
        return false;
    }
-
-
 
 }}

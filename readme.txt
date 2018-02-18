@@ -5,7 +5,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 4.9
-Stable tag: 1.1.5
+Stable tag: 2.0.0
 
 Premium support and features for Really Simple SSL
 
@@ -20,6 +20,7 @@ Really Simple SSL offers the option to activate SSL on a per page basis.
 * Navigate to “settings”, “SSL”.
 * Click “license”
 * Enter your license key, and activate.
+* Start adding pages to SSL on the page, or with the bulk option
 
 
 For more information: go to the [website](https://www.really-simple-ssl.com/), or
@@ -28,7 +29,9 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
-= 1.1.5 =
+= 2.0.0 =
+* Switched SSL pages to the postmeta, which is more robust
+* Migration procedure
 * Fix: when homepage on http, and exclude pages on, homepage redirected to https anyway
 
 = 1.1.4 =
