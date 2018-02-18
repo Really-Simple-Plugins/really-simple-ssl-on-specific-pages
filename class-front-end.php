@@ -129,11 +129,10 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   */
 
   private function is_ssl_page($post_id=null, $path=''){
-    //when pages are excluded from SSL, default SSL
-    if (empty($post_id)) {
-      global $post;
-      if ($post) $post_id = $post->ID;
-    }
+      if (empty($post_id)) {
+          global $post;
+          if ($post) $post_id = $post->ID;
+      }
 
     //homepage needs special treatment
     if ($this->is_home($post_id)) {
