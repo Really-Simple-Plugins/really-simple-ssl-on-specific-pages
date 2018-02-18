@@ -76,14 +76,26 @@ if (!class_exists('rsssl_page_option')) {
       if ( ($doaction !== 'rsssl_enable_https_bulk') && ($doaction !== 'rsssl_disable_https_bulk') ) {
           return $redirect_to;
       }
+
       $exclude =  $really_simple_ssl->exclude_pages;
       $enable = ($doaction === 'rsssl_enable_https_bulk') ? true : false;
       $disable = ($doaction === 'rsssl_disable_https_bulk') ? true : false;
-      //set pages to https. if exclude_pages_from https is enabled, this means the array should not contain these items
 
+      foreach ( $post_ids as $post_id ) {
+          if (RSSSL()->rsssl_front_end->is_home($post_id)) {
+              $options = get_option('rlrsssl_options');
+              if ($enable) $options['home_ssl'] = true;
+              if ($disable) $options['home_ssl'] = false;
+              update_option('rlrsssl_options', $options);
+          }
+      }
+
+      //set pages to https. if exclude_pages_from https is enabled, this means the array should not contain these items
       if (($enable && !$exclude) || ($disable && $exclude)){
           //add these to array
          foreach ( $post_ids as $post_id ) {
+             //handle frontpage differently
+             if ($post_id == get_option( 'page_on_front')) continue;
              if ( !in_array($post_id, $really_simple_ssl->ssl_pages)) $really_simple_ssl->ssl_pages[] = $post_id;
          }
       }
@@ -91,6 +103,8 @@ if (!class_exists('rsssl_page_option')) {
       if (($enable && $exclude) || ($disable && !$exclude)){
           //remove these from array
           foreach ( $post_ids as $post_id ) {
+              //handle frontpage differently
+              if ($post_id == get_option( 'page_on_front')) continue;
               if(($key = array_search($post_id, $really_simple_ssl->ssl_pages)) !== false) {
                   unset($really_simple_ssl->ssl_pages[$key]);
               }
@@ -156,7 +170,7 @@ public function option_html( $post_id ) {
       $checked = "checked";
     }
 
-    if (get_the_ID() == (int)get_option( 'page_on_front' ) || get_the_ID() == (int)get_option( 'page_for_posts' )) {
+    if (RSSSL()->rsssl_front_end->is_home($post_id)) {
       if (RSSSL()->rsssl_front_end->home_ssl) {
         echo __("This is a homepage, which is set in the settings to be loaded over https.", "really-simple-ssl-on-specific-pages");
       } else {
@@ -184,6 +198,12 @@ public function save_option() {
     global $post;
     $current_page_id = $post->ID;
 
+    if (RSSSL()->rsssl_front_end->is_home($current_page_id)) {
+        $options = get_option('rlrsssl_options');
+        if ($enable)  $options['home_ssl'] = true;
+        if ($disable)  $options['home_ssl'] = false;
+        update_option('rlrsssl_options', $options);
+    }
 
     // now store data in custom fields based on checkboxes selected
     if ( isset( $_POST['rsssl_page_on_https'] ) ) {

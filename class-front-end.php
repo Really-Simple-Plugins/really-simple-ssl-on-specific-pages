@@ -130,18 +130,17 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   */
 
   private function is_ssl_page($post_id=null, $path=''){
+      if (empty($post_id)) {
+          global $post;
+          if ($post) $post_id = $post->ID;
+      }
 
     //homepage needs special treatment
-    if ((is_home() || is_front_page())) {
+    if ($this->is_home($post_id)) {
         //should not be inverted for "exclude pages for ssl"
         return $this->home_ssl;
 
     } else {
-
-        if (empty($post_id)) {
-            global $post;
-            if ($post) $post_id = $post->ID;
-        }
 
         $sslpage = false;
         if ($post_id) {
@@ -223,6 +222,13 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
      } else {
        return false;
      }
+   }
+
+   public function is_home($post_id){
+       if ($post_id == (int)get_option( 'page_on_front' ) || $post_id == (int)get_option( 'page_for_posts' )) {
+           return true;
+       }
+       return false;
    }
 
 
