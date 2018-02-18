@@ -46,20 +46,20 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     }
 
   }
+    
+  public function conditional_ssl_home_url($url, $path, $orig_scheme, $blog_id) {
 
-  public function conditional_ssl_home_url($url, $path) {
+      //if this url is the homeurl or siteurl, it should be decided by the homepage setting if it is https or not.
+      $home = rtrim(get_option('home'),"/");
+      $check_url = rtrim($url,"/");
 
-    //if this url is the homeurl or siteurl, it should be decided by the homepage setting if it is https or not.
-    $home = rtrim(get_option('home'),"/");
-    $url = rtrim($url,"/");
-
-    if (str_replace("https://", "http://", $url) == $home){
-      if ($this->home_ssl){
-        return str_replace( 'http://', 'https://', $url );
-      } else {
-        return str_replace( 'https://', 'http://', $url );
+      if (str_replace("https://", "http://", $check_url) == $home){
+          if ($this->home_ssl){
+              return str_replace( 'http://', 'https://', $url );
+          } else {
+              return str_replace( 'https://', 'http://', $url );
+          }
       }
-    }
 
     $page = get_page_by_path( $path , OBJECT, get_post_types() );
   	if (!empty($page))  {
