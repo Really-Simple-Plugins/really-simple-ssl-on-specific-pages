@@ -93,5 +93,4 @@ If you upgrade to 1.1.0, please check the new homepage setting in settings/ssl.
 * Really Simple SSL maintains an extensive knowledge-base at https://www.really-simple-ssl.com.
 
 == Upgrade notice ==
-On settings page load, the .htaccess file is no rewritten. If you have made .htaccess customizations to the RSSSL block and have not blocked the plugin from editing it, do so before upgrading.
-Always back up before any upgrade. Especially .htaccess, wp-config.php and the plugin folder. This way you can easily roll back.
+All SSL or non SSL pages have been moved to the postmeta. Make sure to back up before you update!

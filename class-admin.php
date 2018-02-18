@@ -1476,6 +1476,7 @@ public function create_form(){
 
       //we handle this implicitly now
       //add_settings_field('id_home_ssl', __("Homepage on SSL","really-simple-ssl"), array($this,'get_option_home_ssl'), 'rlrsssl', 'rlrsssl_settings');
+      //add_settings_field('id_force_http', __("Force redirect to http","really-simple-ssl"), array($this,'get_option_force_redirecT_'), 'rlrsssl', 'rlrsssl_settings');
 
     }
 
@@ -1506,7 +1507,7 @@ public function options_validate($input) {
   $newinput = array();
   $newinput['site_has_ssl']                       = $this->site_has_ssl;
   $newinput['ssl_success_message_shown']          = $this->ssl_success_message_shown;
-  $newinput['home_ssl']          = $this->home_ssl;
+  $newinput['home_ssl']                             = $this->home_ssl;
   $newinput['plugin_db_version']                  = $this->plugin_db_version;
   $newinput['ssl_enabled']                        = $this->ssl_enabled;
   $newinput['ssl_enabled_networkwide']            = $this->ssl_enabled_networkwide;
