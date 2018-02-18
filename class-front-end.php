@@ -128,7 +128,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
   */
 
-  private function is_ssl_page($post_id=null, $path=''){
+  public function is_ssl_page($post_id=null, $path=''){
       if (empty($post_id)) {
           global $post;
           if ($post) $post_id = $post->ID;

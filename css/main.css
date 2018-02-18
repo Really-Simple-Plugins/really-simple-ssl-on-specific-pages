@@ -1,5 +1,22 @@
+.manage-column.column-https{
+  width: 4em;
+}
+
+.rsssl-bulk-message.updated {
+  padding: 10px;
+  font-size: 16px;
+}
+
 .rsssl_remove_ssl_page{
   cursor:pointer;
+}
+
+.rsssl-http-icon{
+  width:22px;
+  padding-left:2px;
+}
+.rsssl-https-icon{
+  width:22px;
 }
 
 .activate-ssl ul, .rsssl-result ul, .rsssl_bullets {

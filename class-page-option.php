@@ -58,13 +58,12 @@ if (!class_exists('rsssl_page_option')) {
   public function https_column( $column, $post_id ) {
       if ($column!=='https') return;
       global $really_simple_ssl;
-      $https = get_post_meta($post_id, "rsssl_ssl_page", true);
-      $https =  ($really_simple_ssl->exclude_pages) ? !$https : $https;
+      $https = RSSSL()->rsssl_front_end->is_ssl_page($post_id);
 
       if ($https) {
-          $img = __( 'on', 'really-simple-ssl-on-specific-pages' );//'<img class="umc-sync-icon" title="' . __("Datum doorgegeven", "really-simple-ssl-on-specific-pages"). '" src="'.  'assets/img/check-icon.png" >';
+          $img = '<img class="rsssl-icon rsssl-https-icon" title="' . __("Page on HTTPS", "really-simple-ssl-on-specific-pages"). '" src="'. rsssl_pp_url .'img/https.png" >';
       } else {
-          $img = '-'; //'<img class="umc-sync-icon" title="' . __("Datum doorgegeven", "really-simple-ssl-on-specific-pages"). '" src="'.  'assets/img/cross-icon.png" >';
+          $img = '<img class="rsssl-icon rsssl-http-icon" title="' . __("Page on HTTP", "really-simple-ssl-on-specific-pages"). '" src="'. rsssl_pp_url .'img/http.png" >';
       }
       echo $img;
   }
@@ -114,17 +113,17 @@ if (!class_exists('rsssl_page_option')) {
   }
 
 
-
       function bulk_action_admin_notice() {
           if ( ! empty( $_REQUEST['changed_items'] ) ) {
               $count = intval( $_REQUEST['changed_items'] );
-              $action = intval( $_REQUEST['change_type'] );
+              $action = $_REQUEST['change_type'];
+              error_log($action);
               if ($action == 'rsssl_enable_https_bulk') {
                   $string = sprintf(__('Enabled https for %s items','really-simple-ssl-on-specific-pages'), $count);
             } else {
                   $string = sprintf(__('Disabled https for %s items','really-simple-ssl-on-specific-pages'), $count);
               }
-              printf( '<div id="message" class="updated fade">' .$string. '</div>', $count );
+              printf( '<div id="message" class="rsssl-bulk-message updated fade">' .$string. '</div>', $count );
           }
       }
 
@@ -159,27 +158,20 @@ public function option_html( $post_id ) {
       $option_label = __("This page on https","really-simple-ssl-pro");
     }
 
-
-    if (get_post_meta($current_page_id, "rsssl_ssl_page", true)) {
+    if (RSSSL()->rsssl_front_end->is_ssl_page($current_page_id)) {
+    //if (get_post_meta($current_page_id, "rsssl_ssl_page", true)) {
       $value = 1;
       $checked = "checked";
     }
 
-    if (RSSSL()->rsssl_front_end->is_home($post_id)) {
-      if (RSSSL()->rsssl_front_end->home_ssl) {
-        echo __("This is a homepage, which is set in the settings to be loaded over https.", "really-simple-ssl-on-specific-pages");
-      } else {
-        echo __("This is a homepage, which is set in the settings to be loaded over http.", "really-simple-ssl-on-specific-pages");
-      }
-    } else {
-      echo '<input type="checkbox" '.$checked.' name="rsssl_page_on_https" value="'.$value.'" />'.$option_label.'<br />';
-    }
+    echo '<input type="checkbox" '.$checked.' name="rsssl_page_on_https" value="'.$value.'" />'.$option_label.'<br />';
+
 }
 
 // save data from checkboxes
 
 public function save_option() {
-
+    global $really_simple_ssl;
     // check if this isn't an auto save
     if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE )
         return;
@@ -191,19 +183,19 @@ public function save_option() {
     global $post;
     $current_page_id = $post->ID;
 
+    $enable_https = isset($_POST['rsssl_page_on_https']) ? true : false;
+    if ($really_simple_ssl->exclude_pages) {
+        $enable_https = !$enable_https;
+    }
+
     if (RSSSL()->rsssl_front_end->is_home($current_page_id)) {
         $options = get_option('rlrsssl_options');
-        if ($enable)  $options['home_ssl'] = true;
-        if ($disable)  $options['home_ssl'] = false;
+        $options['home_ssl'] = $enable_https;
         update_option('rlrsssl_options', $options);
     }
 
     // now store data in custom fields based on checkboxes selected
-    if ( isset( $_POST['rsssl_page_on_https'] ) ) {
-        update_post_meta($current_page_id, "rsssl_ssl_page", true);
-    } else {
-        update_post_meta($current_page_id, "rsssl_ssl_page", false);
-    }
+    update_post_meta($current_page_id, "rsssl_ssl_page", $enable_https);
 
   }
 }//class closure
