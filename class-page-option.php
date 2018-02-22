@@ -79,21 +79,16 @@ if (!class_exists('rsssl_page_option')) {
       $enable = ($doaction === 'rsssl_enable_https_bulk') ? true : false;
       $disable = ($doaction === 'rsssl_disable_https_bulk') ? true : false;
 
-      foreach ( $post_ids as $post_id ) {
-          if (RSSSL()->rsssl_front_end->is_home($post_id)) {
-              $options = get_option('rlrsssl_options');
-              if ($enable) $options['home_ssl'] = true;
-              if ($disable) $options['home_ssl'] = false;
-              update_option('rlrsssl_options', $options);
-          }
-      }
-
       //set pages to https. if exclude_pages_from https is enabled, this means the array should not contain these items
       if (($enable && !$exclude) || ($disable && $exclude)){
           //add these to array
          foreach ( $post_ids as $post_id ) {
              //handle frontpage differently
-             if ($post_id == get_option( 'page_on_front')) continue;
+             if (RSSSL()->rsssl_front_end->is_home($post_id)) {
+                 $options = get_option('rlrsssl_options');
+                 $options['home_ssl'] = true;
+                 update_option('rlrsssl_options', $options);
+             }
              update_post_meta($post_id, "rsssl_ssl_page", true);
          }
       }
@@ -102,7 +97,11 @@ if (!class_exists('rsssl_page_option')) {
           //remove these
           foreach ( $post_ids as $post_id ) {
               //handle frontpage differently
-              if ($post_id == get_option( 'page_on_front')) continue;
+              if (RSSSL()->rsssl_front_end->is_home($post_id)) {
+                  $options = get_option('rlrsssl_options');
+                  $options['home_ssl'] = false;
+                  update_option('rlrsssl_options', $options);
+              }
               update_post_meta( $post_id, "rsssl_ssl_page", false);
           }
       }
@@ -117,7 +116,7 @@ if (!class_exists('rsssl_page_option')) {
           if ( ! empty( $_REQUEST['changed_items'] ) ) {
               $count = intval( $_REQUEST['changed_items'] );
               $action = $_REQUEST['change_type'];
-              error_log($action);
+
               if ($action == 'rsssl_enable_https_bulk') {
                   $string = sprintf(__('Enabled https for %s items','really-simple-ssl-on-specific-pages'), $count);
             } else {

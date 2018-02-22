@@ -78,7 +78,7 @@ if (!class_exists('rsssl_admin')) {
 
 
   public function upgrade(){
-      //migrate SSL pages to post meta
+      //migrate SSL pages top post meta
       $options = get_option('rlrsssl_options');
       //only upgrade if the option is still there
       if (isset($options['ssl_pages'])) {
@@ -89,8 +89,7 @@ if (!class_exists('rsssl_admin')) {
 
           //create a backup
           update_option("rsssl_backup_ssl_pages", $options['ssl_pages']);
-
-          //now remove it, unless we have some restore procedure active
+          //now remove it
           unset($options['ssl_pages']);
           update_option('rlrsssl_options', $options);
       }
@@ -1397,12 +1396,9 @@ public function img($type) {
    */
 
 public function enqueue_assets($hook){
-  global $rsssl_admin_page;
 
-//  if( ($hook != $rsssl_admin_page)  )
-//      return;
 
-  wp_register_style( 'rlrsssl-css', $this->plugin_url . 'css/main.css', array(), rsssl_pp_version );
+  wp_register_style( 'rlrsssl-css', $this->plugin_url . 'css/main.css',array(), rsssl_pp_version );
   wp_enqueue_style( 'rlrsssl-css');
 
 }
@@ -1473,10 +1469,7 @@ public function create_form(){
       add_settings_field('id_debug', __("Debug","really-simple-ssl"), array($this,'get_option_debug'), 'rlrsssl', 'rlrsssl_settings');
       add_settings_field('id_exclude_pages', __("Exclude pages from SSL","really-simple-ssl"), array($this,'get_option_exclude_pages'), 'rlrsssl', 'rlrsssl_settings');
       add_settings_field('id_permanent_redirect', __("Redirect permanently","really-simple-ssl"), array($this,'get_option_permanent_redirect'), 'rlrsssl', 'rlrsssl_settings');
-
-      //we handle this implicitly now
-      //add_settings_field('id_home_ssl', __("Homepage on SSL","really-simple-ssl"), array($this,'get_option_home_ssl'), 'rlrsssl', 'rlrsssl_settings');
-      //add_settings_field('id_force_http', __("Force redirect to http","really-simple-ssl"), array($this,'get_option_force_redirecT_'), 'rlrsssl', 'rlrsssl_settings');
+      add_settings_field('id_home_ssl', __("Homepage on SSL","really-simple-ssl"), array($this,'get_option_home_ssl'), 'rlrsssl', 'rlrsssl_settings');
 
     }
 
@@ -1506,8 +1499,8 @@ public function options_validate($input) {
   //fill array with current values, so we don't lose any
   $newinput = array();
   $newinput['site_has_ssl']                       = $this->site_has_ssl;
+
   $newinput['ssl_success_message_shown']          = $this->ssl_success_message_shown;
-  $newinput['home_ssl']                             = $this->home_ssl;
   $newinput['plugin_db_version']                  = $this->plugin_db_version;
   $newinput['ssl_enabled']                        = $this->ssl_enabled;
   $newinput['ssl_enabled_networkwide']            = $this->ssl_enabled_networkwide;
@@ -1534,6 +1527,12 @@ public function options_validate($input) {
     $newinput['permanent_redirect'] = TRUE;
   } else {
     $newinput['permanent_redirect'] = FALSE;
+  }
+
+  if (!empty($input['home_ssl']) && $input['home_ssl']=='1') {
+    $newinput['home_ssl'] = TRUE;
+  } else {
+    $newinput['home_ssl'] = FALSE;
   }
 
   return $newinput;

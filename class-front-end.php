@@ -37,12 +37,13 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
     if ($this->ssl_enabled) {
       if (!(defined('rsssl_pp_backend_http') && rsssl_pp_backend_http)) {
-        if (!defined('FORCE_SSL_ADMIN')) define('FORCE_SSL_ADMIN', true);
-        if (!defined('FORCE_SSL_LOGIN')) define('FORCE_SSL_LOGIN', true);
+          force_ssl_admin(true);
       }
 
-      add_filter('home_url', array($this, 'conditional_ssl_home_url'),10,4);
-      add_action('wp', array($this, 'redirect_to_ssl'), 40,3);
+      if (!is_admin()) {
+          add_filter('home_url', array($this, 'conditional_ssl_home_url'), 10, 4);
+          //add_action('wp', array($this, 'redirect_to_ssl'), 40, 3);
+      }
     }
 
   }
@@ -136,8 +137,9 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
     //homepage needs special treatment
     if ($this->is_home($post_id)) {
-        //should not be inverted for "exclude pages for ssl"
-        return $this->home_ssl;
+        $sslpage = $this->home_ssl;
+        if ($this->exclude_pages) $sslpage = !$sslpage;
+        return $sslpage;
 
     } else {
 
@@ -146,8 +148,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
             $sslpage = get_post_meta($post_id, "rsssl_ssl_page", true);
         }
 
-        if ($this->exclude_pages)
-            $sslpage = !$sslpage;
+        if ($this->exclude_pages) $sslpage = !$sslpage;
 
         $sslpage = apply_filters('rsssl_per_page_is_ssl_page', $sslpage, $post_id, $path);
         return $sslpage;
