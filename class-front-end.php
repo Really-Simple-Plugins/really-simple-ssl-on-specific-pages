@@ -139,6 +139,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     if ($this->is_home($post_id)) {
         $sslpage = $this->home_ssl;
         if ($this->exclude_pages) $sslpage = !$sslpage;
+        $sslpage = apply_filters('rsssl_per_page_is_ssl_page', $sslpage, $post_id, $path);
         return $sslpage;
 
     } else {

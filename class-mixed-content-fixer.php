@@ -33,14 +33,32 @@ if ( ! class_exists( 'rsssl_admin_mixed_content_fixer' ) ) {
    */
 
   public function fix_mixed_content(){
-    $this->build_url_list();
+      /* Do not fix mixed content when call is coming from wp_api or from xmlrpc */
+      if ( defined( 'JSON_REQUEST' ) && JSON_REQUEST ) return;
+      if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) return;
 
-    if (is_admin()) {
-      add_action("admin_init", array($this, "start_buffer"));
-    } else {
-      add_action("template_redirect", array($this, "start_buffer"));
-    }
-    add_action("shutdown", array($this, "end_buffer"));
+      $this->build_url_list();
+
+      /*
+          Take care with modifications to hooks here:
+          hooks tend to differ between front and back-end.
+      */
+
+      if (is_admin()) {
+
+          add_action("admin_init", array($this, "start_buffer"), 100);
+          add_action("shutdown", array($this, "end_buffer"), 999);
+
+      } else {
+
+          if ( (defined( 'RSSSL_CONTENT_FIXER_ON_INIT' ) && RSSSL_CONTENT_FIXER_ON_INIT) ) {
+              add_action("init", array($this, "start_buffer"));
+          } else {
+              add_action("template_redirect", array($this, "start_buffer"));
+          }
+
+          add_action("shutdown", array($this, "end_buffer"), 999);
+      }
   }
 
   /**
