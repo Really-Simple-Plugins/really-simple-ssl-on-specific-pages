@@ -150,18 +150,13 @@ public function option_html( $post_id ) {
 
     global $post;
     $current_page_id = $post->ID;
-
-    if ($really_simple_ssl->exclude_pages) {
-      $option_label = __("Exclude this page from https","really-simple-ssl-pro");
-    } else {
-      $option_label = __("This page on https","really-simple-ssl-pro");
-    }
+    $option_label = __("This page on https","really-simple-ssl-pro");
 
     if (RSSSL()->rsssl_front_end->is_ssl_page($current_page_id)) {
-    //if (get_post_meta($current_page_id, "rsssl_ssl_page", true)) {
       $value = 1;
       $checked = "checked";
     }
+
 
     echo '<input type="checkbox" '.$checked.' name="rsssl_page_on_https" value="'.$value.'" />'.$option_label.'<br />';
 
