@@ -99,6 +99,9 @@ if (!class_exists('rsssl_admin')) {
           foreach($ssl_pages as $ssl_page_id) {
               update_post_meta($ssl_page_id, "rsssl_ssl_page", true);
           }
+//          $ssl_pages = $options['ssl_pages'];
+//          $options["ssl_pages"]=$ssl_pages;
+//          update_option('rlrsssl_options', $options);
       }
 
   }

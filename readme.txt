@@ -5,7 +5,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 4.9
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 
 Premium support and features for Really Simple SSL
 
@@ -29,6 +29,10 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+
+= 2.0.2 =
+* Fix where homepage couldn't be changed via bulk interface
+
 = 2.0.1 =
 * Fix where homepage setting wasn't saved correctly when exclude SSL selected
 * Homepage ssl setting returned for cases where there is no page for the homepage, just a template
