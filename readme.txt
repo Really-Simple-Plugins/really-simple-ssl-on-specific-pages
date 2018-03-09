@@ -31,7 +31,8 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Changelog ==
 
 = 2.0.2 =
-* Fix where homepage couldn't be changed via bulk interface
+* The homepage SSL setting can now be set via the bulk make HTTP/HTTPS interface
+* Fixed text for meta box
 
 = 2.0.1 =
 * Fix where homepage setting wasn't saved correctly when exclude SSL selected
