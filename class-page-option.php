@@ -84,25 +84,38 @@ if (!class_exists('rsssl_page_option')) {
           //add these to array
          foreach ( $post_ids as $post_id ) {
              //handle frontpage differently
-             if (RSSSL()->rsssl_front_end->is_home($post_id)) {
-                 $options = get_option('rlrsssl_options');
-                 $options['home_ssl'] = true;
-                 update_option('rlrsssl_options', $options);
+             if (!RSSSL()->rsssl_front_end->is_home($post_id)) {
+                 update_post_meta($post_id, "rsssl_ssl_page", true);
              }
-             update_post_meta($post_id, "rsssl_ssl_page", true);
+
          }
       }
 
+      //set pages to http
       if (($enable && $exclude) || ($disable && !$exclude)){
           //remove these
           foreach ( $post_ids as $post_id ) {
               //handle frontpage differently
-              if (RSSSL()->rsssl_front_end->is_home($post_id)) {
-                  $options = get_option('rlrsssl_options');
-                  $options['home_ssl'] = false;
-                  update_option('rlrsssl_options', $options);
+              if (!RSSSL()->rsssl_front_end->is_home($post_id)) {
+                  update_post_meta( $post_id, "rsssl_ssl_page", false);
               }
-              update_post_meta( $post_id, "rsssl_ssl_page", false);
+
+          }
+      }
+
+      //handle frontpage differently
+      foreach ( $post_ids as $post_id ) {
+          if (RSSSL()->rsssl_front_end->is_home($post_id)) {
+              $options = get_option('rlrsssl_options');
+              if ($enable) {
+                  $options['home_ssl'] = true;
+              }
+
+              if ($disable) {
+                  $options['home_ssl'] = false;
+              }
+
+              update_option('rlrsssl_options', $options);
           }
       }
 
@@ -178,8 +191,9 @@ public function save_option() {
     $current_page_id = $post->ID;
 
     $enable_https = isset($_POST['rsssl_page_on_https']) ? true : false;
-    if ($really_simple_ssl->exclude_pages) {
-        $enable_https = !$enable_https;
+
+    if (!RSSSL()->rsssl_front_end->is_home($current_page_id) && $really_simple_ssl->exclude_pages) {
+            $enable_https = !$enable_https;
     }
 
     if (RSSSL()->rsssl_front_end->is_home($current_page_id)) {

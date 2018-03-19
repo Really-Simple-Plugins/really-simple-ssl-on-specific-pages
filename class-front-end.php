@@ -42,7 +42,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
       if (!is_admin()) {
           add_filter('home_url', array($this, 'conditional_ssl_home_url'), 10, 4);
-          //add_action('wp', array($this, 'redirect_to_ssl'), 40, 3);
+          add_action('wp', array($this, 'redirect_to_ssl'), 40, 3);
       }
     }
 
@@ -138,10 +138,9 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     //homepage needs special treatment
     if ($this->is_home($post_id)) {
         $sslpage = $this->home_ssl;
-        if ($this->exclude_pages) $sslpage = !$sslpage;
+        //if ($this->exclude_pages) $sslpage = !$sslpage;
         $sslpage = apply_filters('rsssl_per_page_is_ssl_page', $sslpage, $post_id, $path);
         return $sslpage;
-
     } else {
 
         $sslpage = false;
@@ -187,7 +186,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 //   //if the query variable ‘play’ is appended, tell the plugin to set the current page to http: $sslpage = false
 //  //this only applies when the current post is the same as the checked post, otherwise this would apply when the url contains the var, but we are checking another post.
 //   global $post;
-//   if ($post && ($post_id==$post->ID) && isset($_GET['play'])) {
+//   if (isset($_GET['play'])) {
 //     $sslpage = false;
 //   }
 //
