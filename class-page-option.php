@@ -99,7 +99,6 @@ if (!class_exists('rsssl_page_option')) {
               if (!RSSSL()->rsssl_front_end->is_home($post_id)) {
                   update_post_meta( $post_id, "rsssl_ssl_page", false);
               }
-
           }
       }
 

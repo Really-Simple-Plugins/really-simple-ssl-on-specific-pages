@@ -965,6 +965,7 @@ if (!class_exists('rsssl_admin')) {
   */
 
   public function mixed_content_fixer_detected(){
+      global $really_simple_ssl;
     //get a page that is on SSL.
     if ($really_simple_ssl->exclude_pages) {
         //get page without the ssl page attribute, or false
