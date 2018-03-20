@@ -85,9 +85,12 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
 
  public function redirect_to_ssl() {
+
+      if (is_admin() || is_preview() || $this->is_elementer_preview()) return;
+
      $redirect_type = $this->permanent_redirect ? "301" : "302";
 
-    if ((is_home() || is_front_page()) && $this->home_ssl && !is_ssl()) {
+    if (is_front_page() && $this->home_ssl && !is_ssl()) {
         $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
         $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
         wp_redirect($redirect_url, $redirect_type);
@@ -95,7 +98,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
     }
 
      //if it's the homepage, and homepage should not be SSL, but it is right now, redirect to http
-     if ((is_home() || is_front_page()) && !$this->home_ssl && is_ssl()) {
+     if (is_front_page() && !$this->home_ssl && is_ssl()) {
          $redirect_url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
          $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
          wp_redirect($redirect_url, $redirect_type);
@@ -118,6 +121,27 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
      }
 }
 
+
+
+        /*
+         *
+         * Elementor loads a preview in page. If the page is http, this causes Elementor to fail because of mixed content
+         * So we check this, and don't redirect to http. 
+         *
+         *
+         *
+         * */
+
+
+      public function is_elementer_preview(){
+
+          if (isset($_GET['elementor-preview'])){
+              return true;
+          } else {
+              return false;
+          }
+
+      }
 
 
 
@@ -224,7 +248,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
    }
 
    public function is_home($post_id){
-       if ($post_id == (int)get_option( 'page_on_front' ) || $post_id == (int)get_option( 'page_for_posts' )) {
+       if ($post_id == (int)get_option( 'page_on_front' )) {
            return true;
        }
        return false;

@@ -937,17 +937,28 @@ if (!class_exists('rsssl_admin')) {
    }
 
 
-   public function get_ssl_pages(){
+   public function has_pages_selected(){
 
-        global $wpdb;
-        $sql = "select post_id from ".$wpdb->prefix."postmeta where meta_key = 'rsssl_ssl_page' and meta_value=TRUE";
-        $post_ids = $wpdb->get_results($sql);
-        if (empty($post_ids)) {
-            return false;
-        }
+        //get page with the ssl page attribute, false o
+        $args = array(
+           'post_type' => get_post_types(),
+           'posts_per_page' => -1,
+           'meta_query' => array(
+                array(
+                   'key' => 'rsssl_ssl_page',
+                   'compare' => '=',
+                   'value' => true,
+                ),
+               )
+            );
 
-        return  wp_list_pluck($post_ids, "post_id");
+        $pages = get_posts($args);
+
+        if (count($pages)>0) return true;
+
+        return  false;
    }
+
 
   /**
   *
@@ -957,32 +968,64 @@ if (!class_exists('rsssl_admin')) {
   */
 
   public function mixed_content_fixer_detected(){
+      global $really_simple_ssl;
+    //get a page that is on SSL.
+    if ($really_simple_ssl->exclude_pages) {
+        //get page without the ssl page attribute, or false
+        $args = array(
+           'post_type' => get_post_types(),
+           'posts_per_page' => -1,
+           'meta_query' => array(
+               'relation' => 'or',
+                array(
+                   'key' => 'rsssl_ssl_page',
+                   'compare' => 'NOT EXISTS'
+                ),
+                array(
+                   'key' => 'rsssl_ssl_page',
+                   'compare' => '=',
+                   'value' => false,
+                )
+               )
+            );
 
-    $ssl_pages = $this->get_ssl_pages();
-    if ($ssl_pages) {
-        $ssl_page = reset($ssl_pages);
-        $url = get_permalink($ssl_page);
-        //check if the mixed content fixer is active
-        $status = 0;
-        $web_source = "";
-        //check if the mixed content fixer is active
-        $response = wp_remote_get( $url );
-
-        if( is_array($response) ) {
-          $status = wp_remote_retrieve_response_code( $response );
-          $web_source = wp_remote_retrieve_body($response);
-        }
-
-        if ($status!=200 || (strpos($web_source, "data-rsssl=") === false)) {
-          $this->trace_log("Check for Mixed Content detection failed, http statuscode ".$status);
-          return false;
-        } else {
-          $this->trace_log("Mixed content fixer was successfully detected on the front end.");
-          return true;
-        }
-
+    } else {
+        //get page with ssl page attribute
+        $args = array(
+           'post_type' => get_post_types(),
+           'posts_per_page' => -1,
+           'meta_query' => array(
+                array(
+                   'key' => 'rsssl_ssl_page',
+                   'compare' => '=',
+                   'value' => true,
+                )
+               )
+            );
     }
-    return false;
+
+    $pages = get_posts($args);
+    $page = $pages[0];
+
+    $url = get_permalink($page);
+    //check if the mixed content fixer is active
+    $status = 0;
+    $web_source = "";
+    //check if the mixed content fixer is active
+    $response = wp_remote_get( $url );
+
+    if( is_array($response) ) {
+      $status = wp_remote_retrieve_response_code( $response );
+      $web_source = wp_remote_retrieve_body($response);
+    }
+
+    if ($status!=200 || (strpos($web_source, "data-rsssl=") === false)) {
+      $this->trace_log("Check for Mixed Content detection failed, http statuscode ".$status);
+      return false;
+    } else {
+      $this->trace_log("Mixed content fixer was successfully detected on the front end.");
+      return true;
+    }
 
   }
 
@@ -1269,12 +1312,12 @@ public function settings_page() {
             <?php
 
             ?>
-            <td><?php echo $this->get_ssl_pages() ? $this->img("success") : $this->img("error");?></td>
+            <td><?php echo $this->has_pages_selected() ? $this->img("success") : $this->img("error");?></td>
             <td><?php
-                  if (!$this->get_ssl_pages()) {
-                    _e("You do not have any pages with SSL enabled yet. Start adding them on the Add SSL pages tab","really-simple-ssl")."&nbsp;";
+                  if (!$this->has_pages_selected()) {
+                    _e("You do not have any pages selected yet. You can select enable or disable https on the page itself, or in bulk mode.","really-simple-ssl")."&nbsp;";
                   } else {
-                    _e("Great! you already have some pages on SSL","really-simple-ssl")."&nbsp;";
+                    _e("Great! you already have selected some pages","really-simple-ssl")."&nbsp;";
                   }
                 ?>
               </td><td></td>
@@ -1282,7 +1325,7 @@ public function settings_page() {
           <?php }
           /* check if the mixed content fixer is working */
 
-          if ($this->ssl_enabled && $this->get_ssl_pages() && $this->autoreplace_insecure_links && $this->site_has_ssl) { ?>
+          if ($this->ssl_enabled && $this->has_pages_selected() && $this->autoreplace_insecure_links && $this->site_has_ssl) { ?>
           <tr>
             <td><?php echo $this->mixed_content_fixer_detected() ? $this->img("success") : $this->img("error");?></td>
             <td><?php
