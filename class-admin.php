@@ -960,6 +960,28 @@ if (!class_exists('rsssl_admin')) {
    }
 
 
+      public function get_ssl_pages(){
+
+        //get page with the ssl page attribute, false o
+        $args = array(
+           'post_type' => get_post_types(),
+           'posts_per_page' => -1,
+           'meta_query' => array(
+                array(
+                   'key' => 'rsssl_ssl_page',
+                   'compare' => '=',
+                   'value' => true,
+                ),
+               )
+            );
+
+        $pages = get_posts($args);
+        $pages = wp_list_pluck($pages, 'ID');
+
+        return $pages;
+   }
+
+
   /**
   *
   *  @since 2.2

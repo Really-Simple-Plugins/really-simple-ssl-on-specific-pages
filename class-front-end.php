@@ -86,9 +86,9 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
  public function redirect_to_ssl() {
 
-      if (is_admin() || is_preview() || $this->is_elementer_preview()) return;
+    if (wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview()) return;
 
-     $redirect_type = $this->permanent_redirect ? "301" : "302";
+    $redirect_type = $this->permanent_redirect ? "301" : "302";
 
     if (is_front_page() && $this->home_ssl && !is_ssl()) {
         $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
@@ -121,27 +121,25 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
      }
 }
 
+    /*
+     *
+     * Elementor loads a preview in page. If the page is http, this causes Elementor to fail because of mixed content
+     * So we check this, and don't redirect to http.
+     *
+     *
+     *
+     * */
 
 
-        /*
-         *
-         * Elementor loads a preview in page. If the page is http, this causes Elementor to fail because of mixed content
-         * So we check this, and don't redirect to http. 
-         *
-         *
-         *
-         * */
+  public function is_elementer_preview(){
 
-
-      public function is_elementer_preview(){
-
-          if (isset($_GET['elementor-preview'])){
-              return true;
-          } else {
-              return false;
-          }
-
+      if (isset($_GET['elementor-preview'])){
+          return true;
+      } else {
+          return false;
       }
+
+  }
 
 
 
