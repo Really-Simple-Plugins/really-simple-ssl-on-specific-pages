@@ -36,6 +36,8 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   public function force_ssl() {
 
     if ($this->ssl_enabled) {
+
+
       if (!(defined('rsssl_pp_backend_http') && rsssl_pp_backend_http)) {
           force_ssl_admin(true);
       }
@@ -43,9 +45,26 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
       if (!is_admin()) {
           add_filter('home_url', array($this, 'conditional_ssl_home_url'), 10, 4);
           add_action('wp', array($this, 'redirect_to_ssl'), 40, 3);
+          add_filter( 'wp_get_attachment_url', array($this, 'attachment_url_to_ssl') );
+          add_filter('home_url',  'redirect_ajax', 10, 4);
       }
     }
 
+  }
+
+  public function attachment_url_to_ssl($url, $post_id){
+      if (!$this->is_ssl_page($post_id)) {
+          return str_replace( 'https://', 'http://', $url );
+      }elseif ($this->is_ssl_page($post_id)) {
+          return str_replace( 'http://', 'https://', $url );
+      }
+  }
+
+  public function redirect_ajax($url) {
+
+          if (is_ajax()){
+              return str_replace( 'http://', 'https://', $url );
+          }
   }
     
   public function conditional_ssl_home_url($url, $path, $orig_scheme, $blog_id) {
