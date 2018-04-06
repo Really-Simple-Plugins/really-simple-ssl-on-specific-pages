@@ -5,7 +5,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 4.9
-Stable tag: 2.0.3
+Stable tag: 2.0.4
 
 Premium support and features for Really Simple SSL
 
@@ -29,6 +29,9 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 2.0.4 =
+* Fixed an issue where the Divi builder preview wouldn't load on http pages
+
 = 2.0.3 =
 * Fix: exclude ajax calls from redirect to http
 
