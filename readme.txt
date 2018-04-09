@@ -33,12 +33,9 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 * Fixed an issue where the Divi builder preview wouldn't load on http pages
 
 = 2.0.3 =
-<<<<<<< Updated upstream
 * Fix: exclude ajax calls from redirect to http
-=======
 * Tweak: removed is_home() check for detecting the homepage
 * Fix: Elementor preview pages won't be forced to http://
->>>>>>> Stashed changes
 
 = 2.0.2 =
 * The homepage SSL setting can now be set via the bulk make HTTP/HTTPS interface
