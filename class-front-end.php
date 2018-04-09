@@ -105,7 +105,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
  public function redirect_to_ssl() {
 
-    if (wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview()) return;
+    if (wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview() || $this->is_divi_preview()) return;
 
     $redirect_type = $this->permanent_redirect ? "301" : "302";
 
@@ -160,6 +160,25 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
   }
 
+    /*
+     *
+     * Divi loads a preview in page. If the page is http, this causes Divi to fail because of mixed content
+     * So we check this, and don't redirect to http.
+     *
+     *
+     *
+     * */
+
+
+      public function is_divi_preview(){
+
+          if (isset($_GET['et_pb_preview'])){
+              return true;
+          } else {
+              return false;
+          }
+
+      }
 
 
   /*
