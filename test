@@ -1,4 +1,0 @@
-  add_filter( 'wp_get_attachment_url', 'attachment_url_to_ssl' );
-  function attachment_url_to_ssl($url, $post_id){
-      return str_replace( 'http://', 'https://', $url );
-  }
