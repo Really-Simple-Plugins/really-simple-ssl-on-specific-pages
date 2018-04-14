@@ -36,6 +36,8 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   public function force_ssl() {
 
     if ($this->ssl_enabled) {
+
+
       if (!(defined('rsssl_pp_backend_http') && rsssl_pp_backend_http)) {
           force_ssl_admin(true);
       }
@@ -43,11 +45,28 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
       if (!is_admin()) {
           add_filter('home_url', array($this, 'conditional_ssl_home_url'), 10, 4);
           add_action('wp', array($this, 'redirect_to_ssl'), 40, 3);
+          add_filter( 'wp_get_attachment_url', array($this, 'attachment_url_to_ssl') );
+//          add_filter('home_url',  'redirect_ajax', 10, 4);
       }
     }
 
   }
-    
+
+  public function attachment_url_to_ssl($url, $post_id){
+      if (!$this->is_ssl_page($post_id)) {
+          return str_replace( 'https://', 'http://', $url );
+      }elseif ($this->is_ssl_page($post_id)) {
+          return str_replace( 'http://', 'https://', $url );
+      }
+  }
+
+//  public function redirect_ajax($url) {
+//
+//          if (is_ajax()){
+//              return str_replace( 'http://', 'https://', $url );
+//          }
+//  }
+//
   public function conditional_ssl_home_url($url, $path, $orig_scheme, $blog_id) {
 
       //if this url is the homeurl or siteurl, it should be decided by the homepage setting if it is https or not.
@@ -84,7 +103,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
  public function redirect_to_ssl() {
 
-     if (wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview()) return;
+    if (wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview() || $this->is_divi_preview()) return;
 
      //maybe disable force redirect to http
      $force_redirect_to_http = !( defined('RSSSL_NO_HTTP_REDIRECT') && RSSSL_NO_HTTP_REDIRECT );
@@ -143,6 +162,25 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
   }
 
+    /*
+     *
+     * Divi loads a preview in page. If the page is http, this causes Divi to fail because of mixed content
+     * So we check this, and don't redirect to http.
+     *
+     *
+     *
+     * */
+
+
+      public function is_divi_preview(){
+
+          if (isset($_GET['et_pb_preview'])){
+              return true;
+          } else {
+              return false;
+          }
+
+      }
 
 
   /*
