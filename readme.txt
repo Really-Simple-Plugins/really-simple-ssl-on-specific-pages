@@ -4,8 +4,8 @@ Donate link: https://www.paypal.me/reallysimplessl
 Tags: mixed content, insecure content, secure website, website security, ssl, https, tls, security, secure socket layers, hsts
 Requires at least: 4.2
 License: GPL2
-Tested up to: 4.9
-Stable tag: 2.0.4
+Tested up to: 5.0
+Stable tag: 2.0.5
 
 Premium support and features for Really Simple SSL
 
@@ -29,6 +29,9 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 2.0.5 =
+* Tweak: added option to prevent redirect to http on https pages
+
 = 2.0.4 =
 * Fixed an issue where the Divi builder preview wouldn't load on http pages
 
