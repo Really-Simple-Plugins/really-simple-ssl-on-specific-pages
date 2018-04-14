@@ -32,7 +32,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
    * @access public
    *
    */
-
+  
   public function force_ssl() {
 
     if ($this->ssl_enabled) {
@@ -82,43 +82,45 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   }
 
 
-
-
  public function redirect_to_ssl() {
 
-    if (wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview()) return;
+     if (wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview()) return;
 
-    $redirect_type = $this->permanent_redirect ? "301" : "302";
+     //maybe disable force redirect to http
+     $force_redirect_to_http = !( defined('RSSSL_NO_HTTP_REDIRECT') && RSSSL_NO_HTTP_REDIRECT );
 
-    if (is_front_page() && $this->home_ssl && !is_ssl()) {
+     $redirect_type = $this->permanent_redirect ? "301" : "302";
+
+     if (is_front_page() && $this->home_ssl && !is_ssl()) {
         $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
         $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
         wp_redirect($redirect_url, $redirect_type);
         exit;
-    }
+     }
 
      //if it's the homepage, and homepage should not be SSL, but it is right now, redirect to http
-     if (is_front_page() && !$this->home_ssl && is_ssl()) {
+     if ($force_redirect_to_http && is_front_page() && !$this->home_ssl && is_ssl()) {
          $redirect_url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
          $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
          wp_redirect($redirect_url, $redirect_type);
          exit;
      }
 
-    if ($this->is_ssl_page() && !is_ssl()) {
+     if ($this->is_ssl_page() && !is_ssl()) {
         $redirect_url = "https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
         $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
         wp_redirect($redirect_url, $redirect_type);
         exit;
-    }
+     }
 
-    //ssl, but not an ssl page? redirect to http. Might cause loops when https redirect is enabled.
-     if (!$this->is_ssl_page() && is_ssl()) {
+     //ssl, but not an ssl page? redirect to http. Might cause loops when https redirect is enabled.
+     if ($force_redirect_to_http && !$this->is_ssl_page() && is_ssl()) {
          $redirect_url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
          $redirect_url = apply_filters("rsssl_per_page_redirect_url", $redirect_url);
          wp_redirect($redirect_url, $redirect_type);
          exit;
      }
+
 }
 
     /*
