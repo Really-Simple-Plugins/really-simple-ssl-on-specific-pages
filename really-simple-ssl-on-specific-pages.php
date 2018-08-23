@@ -116,8 +116,7 @@ class REALLY_SIMPLE_SSL_PP {
     }
 }
 
-require_once(ABSPATH.'wp-admin/includes/plugin.php');
-$core_plugin = 'really-simple-ssl/rlrsssl-really-simple-ssl.php';
+
 
 if (is_plugin_active($core_plugin) ) {
   add_action('admin_notices', 'rsssl_pp_admin_notices');

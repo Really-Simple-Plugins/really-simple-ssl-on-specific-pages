@@ -55,7 +55,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
   public function attachment_url_to_ssl($url, $post_id){
       if (!$this->is_ssl_page($post_id)) {
           return str_replace( 'https://', 'http://', $url );
-      }elseif ($this->is_ssl_page($post_id)) {
+      } elseif ($this->is_ssl_page($post_id)) {
           return str_replace( 'http://', 'https://', $url );
       }
   }
@@ -103,7 +103,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
 
  public function redirect_to_ssl() {
 
-    if (wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview() || $this->is_divi_preview()) return;
+     if (apply_filters('rsssl_exit_redirect', false) || wp_doing_ajax() || is_admin() || is_preview() || $this->is_elementer_preview() || $this->is_divi_preview()) return;
 
      //maybe disable force redirect to http
      $force_redirect_to_http = !( defined('RSSSL_NO_HTTP_REDIRECT') && RSSSL_NO_HTTP_REDIRECT );
