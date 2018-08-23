@@ -45,28 +45,23 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
       if (!is_admin()) {
           add_filter('home_url', array($this, 'conditional_ssl_home_url'), 10, 4);
           add_action('wp', array($this, 'redirect_to_ssl'), 40, 3);
-          add_filter( 'wp_get_attachment_url', array($this, 'attachment_url_to_ssl') );
-//          add_filter('home_url',  'redirect_ajax', 10, 4);
+          add_filter( 'wp_get_attachment_url', array($this, 'attachment_url_to_ssl'), 100, 2 );
       }
     }
 
   }
 
-  public function attachment_url_to_ssl($url, $post_id){
-      if (!$this->is_ssl_page($post_id)) {
-          return str_replace( 'https://', 'http://', $url );
-      } elseif ($this->is_ssl_page($post_id)) {
-          return str_replace( 'http://', 'https://', $url );
-      }
-  }
+      public function attachment_url_to_ssl($url, $attachment_post_id){
 
-//  public function redirect_ajax($url) {
-//
-//          if (is_ajax()){
-//              return str_replace( 'http://', 'https://', $url );
-//          }
-//  }
-//
+          $post_id = wp_get_post_parent_id( $attachment_post_id );
+
+          if (!$this->is_ssl_page($post_id)) {
+              return str_replace( 'https://', 'http://', $url );
+          }elseif ($this->is_ssl_page($post_id)) {
+              return str_replace( 'http://', 'https://', $url );
+          }
+      }
+
   public function conditional_ssl_home_url($url, $path, $orig_scheme, $blog_id) {
 
       //if this url is the homeurl or siteurl, it should be decided by the homepage setting if it is https or not.
