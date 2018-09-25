@@ -84,6 +84,7 @@ class REALLY_SIMPLE_SSL_PP
 
     private function setup_constants()
     {
+        require_once(ABSPATH.'wp-admin/includes/plugin.php');
         $plugin_data = get_plugin_data(__FILE__);
         define('rsssl_pp_url', plugin_dir_url(__FILE__));
         define('rsssl_pp_path', plugin_dir_path(__FILE__));
