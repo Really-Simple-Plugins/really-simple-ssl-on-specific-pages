@@ -5,7 +5,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 5.0
-Stable tag: 2.0.5
+Stable tag: 2.0.6
 
 Premium support and features for Really Simple SSL
 
@@ -22,13 +22,17 @@ Really Simple SSL offers the option to activate SSL on a per page basis.
 * Enter your license key, and activate.
 * Start adding pages to SSL on the page, or with the bulk option
 
-
 For more information: go to the [website](https://www.really-simple-ssl.com/), or
 [contact](https://www.really-simple-ssl.com/contact/) me if you have any questions or suggestions.
 
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 2.0.6 =
+* Tweak: added warning when 301 redirect not enabled
+* Tweak: Made locks in pages overview clickable
+* Tweak: improved UX on checkboxes
+
 = 2.0.5 =
 * Tweak: added option to prevent redirect to http on https pages
 
