@@ -45,7 +45,7 @@ if ( ! class_exists( 'rsssl_front_end' ) ) {
       if (!is_admin()) {
           add_filter('home_url', array($this, 'conditional_ssl_home_url'), 10, 4);
           add_action('wp', array($this, 'redirect_to_ssl'), 40, 3);
-          add_filter( 'wp_get_attachment_url', array($this, 'attachment_url_to_ssl') );
+          add_filter( 'wp_get_attachment_url', array($this, 'attachment_url_to_ssl') , 10, 2);
 //          add_filter('home_url',  'redirect_ajax', 10, 4);
       }
     }
