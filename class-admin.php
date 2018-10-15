@@ -365,6 +365,7 @@ if (!class_exists('rsssl_admin')) {
                 <li><?php _e('Images, stylesheets or scripts from a domain without an ssl certificate: remove them or move to your own server.', 'really-simple-ssl'); ?></li>
             </ul>
             </p>
+            </div>
 
             <?php if ($this->site_has_ssl) { ?>
                 <form action="" method="post">
