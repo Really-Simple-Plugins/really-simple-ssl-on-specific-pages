@@ -351,7 +351,7 @@ if (!class_exists('rsssl_admin')) {
             if (!$this->site_has_ssl) { ?>
                 <div id="message" class="error fade notice activate-ssl">
                     <p><?php _e("No SSL was detected. If you do have an ssl certificate, try to change your current url in the browser address bar to https.", "really-simple-ssl"); ?></p>
-
+                </div>
             <?php } else { ?>
 
                 <div id="message" class="updated fade notice activate-ssl">
@@ -364,17 +364,14 @@ if (!class_exists('rsssl_admin')) {
                 <li><?php _e('Http references in your .css and .js files: change any http:// into //', 'really-simple-ssl'); ?></li>
                 <li><?php _e('Images, stylesheets or scripts from a domain without an ssl certificate: remove them or move to your own server.', 'really-simple-ssl'); ?></li>
             </ul>
-            </p>
-            </div>
-
             <?php if ($this->site_has_ssl) { ?>
                 <form action="" method="post">
                     <?php wp_nonce_field('rsssl_nonce', 'rsssl_nonce'); ?>
                     <input type="submit" class='button button-primary' value="Enable SSL per page!"
                            id="rsssl_do_activate_ssl" name="rsssl_do_activate_ssl">
                 </form>
-            <?php } ?>
             </div>
+            <?php } ?>
         <?php }
 
         /**
@@ -614,12 +611,15 @@ if (!class_exists('rsssl_admin')) {
             if (strpos($wpconfig, "//Begin Really Simple SSL Load balancing fix") === FALSE) {
                 if (is_writable($wpconfig_path)) {
                     $rule = "\n" . "//Begin Really Simple SSL Load balancing fix" . "\n";
-                    $rule .= '$server_opts = array("HTTP_CLOUDFRONT_FORWARDED_PROTO" => "https", "HTTP_CF_VISITOR"=>"https", "HTTP_X_FORWARDED_PROTO"=>"https", "HTTP_X_FORWARDED_SSL"=>"on", "HTTP_X_FORWARDED_SSL"=>"1");' . "\n";
-                    $rule .= 'foreach( $server_opts as $option => $value ) {' . "\n";
-                    $rule .= 'if ( (isset($_ENV["HTTPS"]) && ( "on" == $_ENV["HTTPS"] )) || (isset( $_SERVER[ $option ] ) && ( strpos( $_SERVER[ $option ], $value ) !== false )) ) {' . "\n";
-                    $rule .= '$_SERVER[ "HTTPS" ] = "on";' . "\n";
-                    $rule .= 'break;' . "\n";
-                    $rule .= '}' . "\n";
+                    $rule .= 'if ((isset($_ENV["HTTPS"]) && ("on" == $_ENV["HTTPS"]))' . "\n";
+                    $rule .= '|| (isset($_SERVER["HTTP_X_FORWARDED_SSL"]) && (strpos($_SERVER["HTTP_X_FORWARDED_SSL"], "1") !== false))' . "\n";
+                    $rule .= '|| (isset($_SERVER["HTTP_X_FORWARDED_SSL"]) && (strpos($_SERVER["HTTP_X_FORWARDED_SSL"], "on") !== false))' . "\n";
+                    $rule .= '|| (isset($_SERVER["HTTP_CF_VISITOR"]) && (strpos($_SERVER["HTTP_CF_VISITOR"], "https") !== false))' . "\n";
+                    $rule .= '|| (isset($_SERVER["HTTP_CLOUDFRONT_FORWARDED_PROTO"]) && (strpos($_SERVER["HTTP_CLOUDFRONT_FORWARDED_PROTO"], "https") !== false))' . "\n";
+                    $rule .= '|| (isset($_SERVER["HTTP_X_FORWARDED_PROTO"]) && (strpos($_SERVER["HTTP_X_FORWARDED_PROTO"], "https") !== false))' . "\n";
+                    $rule .= '|| (isset($_SERVER["HTTP_X_PROTO"]) && (strpos($_SERVER["HTTP_X_PROTO"], "SSL") !== false))' . "\n";
+                    $rule .= ') {' . "\n";
+                    $rule .= '$_SERVER["HTTPS"] = "on";' . "\n";
                     $rule .= '}' . "\n";
                     $rule .= "//END Really Simple SSL" . "\n";
 
@@ -829,21 +829,18 @@ if (!class_exists('rsssl_admin')) {
         public function is_ssl_extended()
         {
             $server_var = FALSE;
-            $server_opts = array(
-                'HTTP_X_FORWARDED_PROTO' => 'https',
-                'HTTP_CLOUDFRONT_FORWARDED_PROTO' => 'https',
-                'HTTP_CF_VISITOR' => 'https',
-                'HTTP_X_FORWARDED_SSL' => 'on',
-                'HTTP_X_FORWARDED_SSL' => '1'
-            );
 
-            foreach ($server_opts as $option => $value) {
-                if ((isset($_ENV['HTTPS']) && ('on' == $_ENV['HTTPS']))
-                    || (isset($_SERVER[$option]) && (strpos($_SERVER[$option], $value) !== false))) {
-                    $server_var = TRUE;
-                    break;
-                }
+            if ((isset($_ENV['HTTPS']) && ('on' == $_ENV['HTTPS']))
+                || (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && (strpos($_SERVER['HTTP_X_FORWARDED_SSL'], '1') !== false))
+                || (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && (strpos($_SERVER['HTTP_X_FORWARDED_SSL'], 'on') !== false))
+                || (isset($_SERVER['HTTP_CF_VISITOR']) && (strpos($_SERVER['HTTP_CF_VISITOR'], 'https') !== false))
+                || (isset($_SERVER['HTTP_CLOUDFRONT_FORWARDED_PROTO']) && (strpos($_SERVER['HTTP_CLOUDFRONT_FORWARDED_PROTO'], 'https') !== false))
+                || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && (strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false))
+                || (isset($_SERVER['HTTP_X_PROTO']) && (strpos($_SERVER['HTTP_X_PROTO'], 'SSL') !== false))
+            ) {
+                $server_var = TRUE;
             }
+
 
             if (is_ssl() || $server_var) {
                 return true;
@@ -1131,15 +1128,27 @@ if (!class_exists('rsssl_admin')) {
             <div id="message" class="error fade notice">
                 <h1><?php echo __("System detection encountered issues", "really-simple-ssl"); ?></h1>
 
-                <?php if ($this->do_wpconfig_loadbalancer_fix) { ?>
+                <?php if ($this->wpconfig_siteurl_not_fixed) { ?>
+                    <p>
+                        <?php echo __("A definition of a siteurl or homeurl was detected in your wp-config.php, but the file is not writable.", "really-simple-ssl"); ?>
+                    </p>
+                    <p><?php echo __("Set your wp-config.php to writable and reload this page.", "really-simple-ssl"); ?></p>
+                <?php }
+                if ($this->do_wpconfig_loadbalancer_fix) { ?>
                     <p><?php echo __("Your wp-config.php has to be edited, but is not writable.", "really-simple-ssl"); ?></p>
                     <p><?php echo __("Because your site is behind a loadbalancer and is_ssl() returns false, you should add the following line of code to your wp-config.php.", "really-simple-ssl"); ?>
 
                         <br><br><code>
-                            //Begin Really Simple SSL Load balancing fix <br>
-                            if (isset($_SERVER["HTTP_X_FORWARDED_PROTO"] ) &amp;&amp; "https" ==
-                            $_SERVER["HTTP_X_FORWARDED_PROTO"] ) {<br>
-                            &nbsp;&nbsp;$_SERVER["HTTPS"] = "on";<br>
+                            //Begin Really Simple SSL Load balancing fix<br>
+                            $server_opts = array("HTTP_CLOUDFRONT_FORWARDED_PROTO" => "https", "HTTP_CF_VISITOR"=>"https",
+                            "HTTP_X_FORWARDED_PROTO"=>"https", "HTTP_X_FORWARDED_SSL"=>"on", "HTTP_X_PROTO"=>"SSL",
+                            "HTTP_X_FORWARDED_SSL"=>"1");<br>
+                            foreach( $server_opts as $option => $value ) {<br>
+                            &nbsp;if ((isset($_ENV["HTTPS"]) && ( "on" == $_ENV["HTTPS"] )) || (isset( $_SERVER[ $option ] )
+                            && ( strpos( $_SERVER[ $option ], $value ) !== false )) ) {<br>
+                            &nbsp;&nbsp;$_SERVER[ "HTTPS" ] = "on";<br>
+                            &nbsp;&nbsp;break;<br>
+                            &nbsp;}<br>
                             }<br>
                             //END Really Simple SSL
                         </code><br>
@@ -1148,10 +1157,13 @@ if (!class_exists('rsssl_admin')) {
                     <?php
                 }
 
-                if ($this->no_server_variable) { ?>
-                    <p><?php echo __('Because your server does not pass a variable with which Wordpress can detect SSL, Wordpress would create redirect loops on SSL.', 'really-simple-ssl'); ?></p>
-                    <p><?php echo __("Consider moving your entire site to SSL with the Really Simple SSL plugin in the Wordpress repository.", "really-simple-ssl"); ?></p>
-                <?php } ?>
+                if ($this->no_server_variable) {
+                    ?>
+                    <p><?php echo __('Because your server does not pass a variable with which WordPress can detect SSL, WordPress may create redirect loops on SSL.', 'really-simple-ssl'); ?></p>
+                    <p><?php echo __("Set your wp-config.php to writable and reload this page.", "really-simple-ssl"); ?></p>
+                    <?php
+                }
+                ?>
 
             </div>
             <?php
