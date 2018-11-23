@@ -13,7 +13,7 @@
 
 /*  Copyright 2014  Rogier Lankhorst  */
 
-defined('ABSPATH') or die("you do not have acces to this page!");
+defined('ABSPATH') or die("you do not have access to this page!");
 
 class REALLY_SIMPLE_SSL_PP
 {
