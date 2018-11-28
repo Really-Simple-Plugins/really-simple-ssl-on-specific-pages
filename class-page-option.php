@@ -148,6 +148,10 @@ if (!class_exists('rsssl_page_option')) {
 
         function bulk_action_admin_notice()
         {
+            //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+            $screen = get_current_screen();
+            if ( $screen->parent_base === 'edit' ) return;
+
             if (!empty($_REQUEST['changed_items'])) {
                 $count = intval($_REQUEST['changed_items']);
                 $action = $_REQUEST['change_type'];

@@ -314,6 +314,10 @@ if (!class_exists('rsssl_admin')) {
 
         public function show_notice_activate_networkwide()
         {
+            //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+            $screen = get_current_screen();
+            if ( $screen->parent_base === 'edit' ) return;
+
             if (is_main_site(get_current_blog_id()) && $this->wpconfig_ok()) {
                 ?>
                 <div id="message" class="updated fade notice activate-ssl">
@@ -343,6 +347,10 @@ if (!class_exists('rsssl_admin')) {
 
         public function show_notice_activate_ssl()
         {
+            //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+            $screen = get_current_screen();
+            if ( $screen->parent_base === 'edit' ) return;
+
             //for multisite, show no ssl message only on main blog.
             if (is_multisite() && !is_main_site(get_current_blog_id()) && !$this->site_has_ssl) return;
             if (!$this->wpconfig_ok()) return;
@@ -1124,7 +1132,11 @@ if (!class_exists('rsssl_admin')) {
          */
 
         public function show_notice_wpconfig_needs_fixes()
-        { ?>
+        {
+            //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+            $screen = get_current_screen();
+            if ( $screen->parent_base === 'edit' ) return;
+            ?>
             <div id="message" class="error fade notice">
                 <h1><?php echo __("System detection encountered issues", "really-simple-ssl"); ?></h1>
 
@@ -1180,6 +1192,10 @@ if (!class_exists('rsssl_admin')) {
 
         public function show_notices()
         {
+            //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+            $screen = get_current_screen();
+            if ( $screen->parent_base === 'edit' ) return;
+
             if (!$this->permanent_redirect) {
                 ?>
                 <div id="message" class="error fade notice is-dismissible rlrsssl-fail">
