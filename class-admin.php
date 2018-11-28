@@ -1419,7 +1419,7 @@ if (!class_exists('rsssl_admin')) {
                                     if ($this->ssl_enabled) {
                                         _e("SSL is enabled on your site.", "really-simple-ssl") . "&nbsp;";
                                     } else {
-                                        _e("SSL iss not enabled yet", "really-simple-ssl") . "&nbsp;";
+                                        _e("SSL is not enabled yet", "really-simple-ssl") . "&nbsp;";
                                     }
                                     ?>
                                 </td>
