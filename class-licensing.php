@@ -31,18 +31,22 @@ static function this() {
 
 
 public function show_notice_license(){
-add_action('admin_print_footer_scripts', array($this, 'dismiss_license_notice_script'));
- $dismissed	= get_option( 'rsssl_pp_license_notice_dismissed' );
- if (!$this->license_is_valid() && !$dismissed) { ?>
-	 <?php if (!is_multisite()) {?>
-			<div id="message" class="error fade notice is-dismissible rsssl-pp-dismiss-notice">
-		    <p>
-		      <?php echo __("You haven't activated your Really Simple SSL per page license yet. To get all future updates, enter your license on the settings page.","really-simple-ssl-pp");?>
-					<a href="options-general.php?page=rlrsssl_really_simple_ssl&tab=license"><?php echo __("Go to the settings page","really-simple-ssl-pp");?></a>
-					or <a target="blank" href="https://www.really-simple-ssl.com/premium">purchase a license</a>
-				</p>
-			</div>
-		<?php } ?>
+    //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+    $screen = get_current_screen();
+    if ( $screen->parent_base === 'edit' ) return;
+
+    add_action('admin_print_footer_scripts', array($this, 'dismiss_license_notice_script'));
+    $dismissed	= get_option( 'rsssl_pp_license_notice_dismissed' );
+     if (!$this->license_is_valid() && !$dismissed) { ?>
+         <?php if (!is_multisite()) {?>
+                <div id="message" class="error fade notice is-dismissible rsssl-pp-dismiss-notice">
+                <p>
+                  <?php echo __("You haven't activated your Really Simple SSL per page license yet. To get all future updates, enter your license on the settings page.","really-simple-ssl-pp");?>
+                        <a href="options-general.php?page=rlrsssl_really_simple_ssl&tab=license"><?php echo __("Go to the settings page","really-simple-ssl-pp");?></a>
+                        or <a target="blank" href="https://www.really-simple-ssl.com/premium">purchase a license</a>
+                    </p>
+                </div>
+            <?php } ?>
 <?php
 	}
 }

@@ -3,7 +3,7 @@
  * Plugin Name: Really Simple SSL on specific pages
  * Plugin URI: https://www.really-simple-ssl.com
  * Description: Lightweight plugin without any setup to make your site ssl proof
- * Version: 2.0.8
+ * Version: 2.0.9
  * Text Domain: really-simple-ssl-specific-pages
  * Domain Path: /languages
  * Author: Rogier Lankhorst
@@ -126,6 +126,10 @@ class REALLY_SIMPLE_SSL_PP
 add_action('admin_notices', 'rsssl_pp_admin_notices');
 function rsssl_pp_admin_notices()
 {
+    //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+    $screen = get_current_screen();
+    if ( $screen->parent_base === 'edit' ) return;
+
     if (class_exists('REALLY_SIMPLE_SSL')) {
         ?>
         <div id="message" class="error fade notice">

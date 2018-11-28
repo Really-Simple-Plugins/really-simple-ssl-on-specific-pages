@@ -5,7 +5,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 5.0
-Stable tag: 2.0.8
+Stable tag: 2.0.9
 
 Premium support and features for Really Simple SSL
 
@@ -28,6 +28,9 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 2.0.9=
+*Tweak: notices no longer show on Gutenberg post/page edit screens.
+
 = 2.0.8 =
 * Tweak: added HTTP_X_PROTO as supported header
 * Tweak: split HTTP_X_FORWARDED_SSL into a variation which can be either '1' or 'on'
