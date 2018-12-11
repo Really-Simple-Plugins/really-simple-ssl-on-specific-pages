@@ -172,7 +172,7 @@ public function add_license_page(){
 											<input type="submit" class="button-secondary" name="rsssl_license_per_page_deactivate" value="<?php _e('Deactivate License'); ?>"/>
 										<?php } else {?>
 <!--											<span style="color:red;">Click save to activate your license</span>-->
-                                            <input type="submit" class="button-secondary" name="rsssl_per_page_license_key"
+                                            <input type="submit" class="button-secondary" name="rsssl_per_page_license_key_activate"
                                                    value="<?php _e('Activate License'); ?>"/>
 										<?php } ?>
 									</td>
@@ -185,7 +185,7 @@ public function add_license_page(){
 				</tbody>
 			</table>
 
-            <?php submit_button(); ?>
+            <input type="submit" name="rsssl_per_page_license_key_activate" id="submit" class="button button-primary" value="<?php _e("Save changes", "really-simple-ssl-pro"); ?>">
 
         </form>
 
@@ -214,7 +214,7 @@ public function sanitize_license( $new ) {
 
 public function activate_license() {
 	// listen for our activate button to be clicked
-	if( isset( $_POST['rsssl_per_page_license_key'] ) && !isset($_POST['rsssl_license_per_page_deactivate'])) {
+	if( isset( $_POST['rsssl_per_page_license_key_activate'] ) && !isset($_POST['rsssl_license_per_page_deactivate'])) {
 
 		// run a quick security check
 	 	if( ! check_admin_referer( 'rsssl_per_page_nonce', 'rsssl_per_page_nonce' ) )
