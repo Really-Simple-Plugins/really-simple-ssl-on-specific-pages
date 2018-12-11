@@ -315,3 +315,34 @@ input:focus + .rsssl-slider {
   margin-left: 0;
   margin-bottom: -16px;
 }
+
+/* License page */
+.rsssl_notice_license {
+  font-size: 13px!important;
+  border-radius: .25rem;
+  padding: 10px 15px;
+  margin: 10px 0;
+  background-color: #d9edf7;
+  border: 1px solid #bcdff1;
+  color: #31708f;
+}
+.rsssl_notice_license h1 {
+  font-size: 16px;
+}
+.rsssl_notice_license p {
+  font-size: 13px!important;
+}
+.rsssl_notice_license.success {
+  background-color: #dff0d8;
+  border-color: #d0e9c6;
+  color: #3c763d;
+}
+.rsssl_notice_license.warning {
+  color: #856404;
+  background-color: #fff3cd;
+  border-color: #ffeeba;
+}
+.rsssl_notice_license ul {
+  list-style-type: disc;
+  margin-left: 22px;
+}
