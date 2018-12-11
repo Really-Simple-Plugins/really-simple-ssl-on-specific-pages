@@ -171,7 +171,6 @@ public function add_license_page(){
 											<span style="color:green;"><?php _e('active'); ?></span>
 											<input type="submit" class="button-secondary" name="rsssl_license_per_page_deactivate" value="<?php _e('Deactivate License'); ?>"/>
 										<?php } else {?>
-<!--											<span style="color:red;">Click save to activate your license</span>-->
                                             <input type="submit" class="button-secondary" name="rsssl_per_page_license_key_activate"
                                                    value="<?php _e('Activate License'); ?>"/>
 										<?php } ?>
