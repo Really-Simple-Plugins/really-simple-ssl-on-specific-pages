@@ -29,7 +29,8 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 
 == Changelog ==
 = 2.0.9=
-*Tweak: notices no longer show on Gutenberg post/page edit screens.
+* Tweak: notices no longer show on Gutenberg post/page edit screens.
+* Tweak: added license notices
 
 = 2.0.8 =
 * Tweak: added HTTP_X_PROTO as supported header
