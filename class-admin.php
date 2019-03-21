@@ -110,9 +110,14 @@ if (!class_exists('rsssl_admin')) {
 
         }
 
-        /*
-         * This function is needed for compatibility with Really Simple SSL pro
-         * */
+        /**
+         * @return bool
+         *
+         * Check if the htaccess file contains HSTS header
+         *
+         * Since 2.0
+         *
+         */
 
         public function contains_hsts()
         {
@@ -136,7 +141,7 @@ if (!class_exists('rsssl_admin')) {
         /**
          * Initializes the admin class
          *
-         * @since  2.2
+         * @since  2.0
          *
          * @access public
          *
@@ -203,9 +208,12 @@ if (!class_exists('rsssl_admin')) {
         }
 
 
-        /*
-          checks if the user just clicked the "activate ssl" button.
-        */
+        /**
+         * @return bool
+         *
+         * Check if the user has pressed the Activate SSL button
+         *
+         */
 
         private function clicked_activate_ssl()
         {
@@ -245,6 +253,13 @@ if (!class_exists('rsssl_admin')) {
             return false;
         }
 
+        /**
+         * @return bool
+         *
+         * Check if the wp-config file is ok
+         *
+         */
+
         public function wpconfig_ok()
         {
             if (($this->do_wpconfig_loadbalancer_fix || $this->no_server_variable || $this->wpconfig_siteurl_not_fixed) && !$this->wpconfig_is_writable()) {
@@ -255,7 +270,12 @@ if (!class_exists('rsssl_admin')) {
         }
 
 
-        //change deprecated function depending on version.
+        /**
+         * @return array|int
+         *
+         * Change deprecated function depending on version.
+         *
+         */
 
         public function get_sites_bw_compatible()
         {
@@ -264,10 +284,12 @@ if (!class_exists('rsssl_admin')) {
             return $sites;
         }
 
-        /*
-              The new get_sites function returns an object.
-
-        */
+        /**
+         * @param $site
+         *
+         * The new get_sites function returns an object.
+         *
+         */
 
         public function switch_to_blog_bw_compatible($site)
         {
@@ -341,9 +363,10 @@ if (!class_exists('rsssl_admin')) {
             }
         }
 
-        /*
-            This message is shown when no ssl is not enabled by the user yet
-        */
+        /**
+         *
+         * This message is shown when no ssl is not enabled by the user yet
+         */
 
         public function show_notice_activate_ssl()
         {
@@ -402,6 +425,13 @@ if (!class_exists('rsssl_admin')) {
             <?php
         }
 
+        /**
+         * @return bool
+         *
+         * Check if wp-config is writeable
+         *
+         */
+
         public function wpconfig_is_writable()
         {
             $wpconfig_path = $this->find_wp_config_path();
@@ -411,9 +441,9 @@ if (!class_exists('rsssl_admin')) {
                 return false;
         }
 
-        /*
-        *     Check if the uninstall file is renamed to .php
-        */
+        /**
+         * Check if the uninstall file is renamed to .php
+         */
 
         protected function check_for_uninstall_file()
         {
@@ -983,6 +1013,12 @@ if (!class_exists('rsssl_admin')) {
 
         }
 
+        /**
+         * @return bool
+         *
+         * Check is pages are selected
+         *
+         */
 
         public function has_pages_selected()
         {
@@ -1007,6 +1043,11 @@ if (!class_exists('rsssl_admin')) {
             return false;
         }
 
+        /**
+         * @return array|int[]|WP_Post[]
+         *
+         * Get SSL enabled pages
+         */
 
         public function get_ssl_pages()
         {
@@ -1111,6 +1152,7 @@ if (!class_exists('rsssl_admin')) {
          *
          * @access private
          *
+         * @return bool
          */
 
         private function is_subfolder($domain)
@@ -1125,7 +1167,7 @@ if (!class_exists('rsssl_admin')) {
         }
 
         /**
-         *     Show warning when wpconfig could not be fixed
+         * Show warning when wpconfig could not be fixed
          *
          * @since 2.2
          *
@@ -1747,6 +1789,12 @@ if (!class_exists('rsssl_admin')) {
             <?php
         }
 
+        /**
+         *
+         * Get the exclude pages options
+         *
+         */
+
         public function get_option_exclude_pages()
         {
             ?>
@@ -1760,6 +1808,12 @@ if (!class_exists('rsssl_admin')) {
             RSSSL()->rsssl_help->get_help_tip(__("If you enable this option, you can exclude pages from SSL instead of adding pages to SSL.", "really-simple-ssl"));
         }
 
+        /**
+         *
+         * Permanent 301 redirect option
+         *
+         */
+
         public function get_option_permanent_redirect()
         {
             ?>
@@ -1772,6 +1826,13 @@ if (!class_exists('rsssl_admin')) {
 
             RSSSL()->rsssl_help->get_help_tip(__("For your SEO a 301 permanent redirect is best. It is not turned on by default, as it might make it difficult to switch when you are still configuring.", "really-simple-ssl"));
         }
+
+        /**
+         *
+         *
+         * Get homepage on SSL option
+         *
+         */
 
         public function get_option_home_ssl()
         {

@@ -33,6 +33,12 @@ static function this() {
 	return self::$_this;
 }
 
+    /**
+     * Show a license notice
+     *
+     * @since 2.0
+     *
+     */
 
 public function show_notice_license(){
     //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
@@ -290,6 +296,15 @@ public function deactivate_license() {
 	}
 }
 
+    /**
+     * @return array|bool|mixed|object
+     *
+     * Get the latest license data
+     *
+     * @since 2.0
+     *
+     */
+
     public
     function get_latest_license_data()
     {
@@ -337,6 +352,16 @@ public function deactivate_license() {
         return $license_data;
     }
 
+    /**
+     * @param $license_data
+     * @return bool|string|void
+     *
+     * Get error messages
+     *
+     * Since 2.0
+     *
+     */
+
     public function get_error_message($license_data){
         $link = '<a target="_blank" href="' . $this->website . '">';
         $support_link = '<a target="_blank" href="https://really-simple-ssl.com/support">';
@@ -379,6 +404,19 @@ public function deactivate_license() {
         return $message;
     }
 
+    /**
+     * @param $msg
+     * @param string $type
+     * @param bool $hide
+     * @param bool $echo
+     * @return string|void
+     *
+     * Generate an error message
+     *
+     * @since 2.0
+     *
+     */
+
     public function rsssl_notice($msg, $type='rsssl_notice_license', $hide = false, $echo=true)
     {
 
@@ -392,6 +430,15 @@ public function deactivate_license() {
             return $html;
         }
     }
+
+    /**
+     * @return bool
+     *
+     * Check if license is valid
+     *
+     * @since 2.0
+     *
+     */
 
 public function license_is_valid() {
 
