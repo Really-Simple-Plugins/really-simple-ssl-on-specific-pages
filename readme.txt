@@ -4,8 +4,8 @@ Donate link: https://www.paypal.me/reallysimplessl
 Tags: mixed content, insecure content, secure website, website security, ssl, https, tls, security, secure socket layers, hsts
 Requires at least: 4.2
 License: GPL2
-Tested up to: 5.0
-Stable tag: 2.0.10
+Tested up to: 5.2
+Stable tag: 2.0.11
 
 Premium support and features for Really Simple SSL
 
@@ -28,6 +28,9 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 2.0.11 =
+* Tested up to WordPress 5.2
+
 = 2.0.10 =
 * Updated function documentation
 
@@ -40,7 +43,7 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 * Tweak: split HTTP_X_FORWARDED_SSL into a variation which can be either '1' or 'on'
 
 = 2.0.7 =
-* Fix: not passing enought arguments in the attachments functions can cause a fatal error on homepages.
+* Fix: not passing enough arguments in the attachments functions can cause a fatal error on homepages.
 
 = 2.0.6 =
 * Tweak: added warning when 301 redirect not enabled
