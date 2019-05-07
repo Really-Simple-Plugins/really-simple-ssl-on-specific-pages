@@ -36,6 +36,12 @@ if ( ! class_exists( 'rsssl_cache' ) ) {
     //add_action( 'shutdown', array($this,'flush_wp_rocket'));
   }
 
+      /**
+       *
+       * Flush W3TC cache
+       *
+       */
+
   public function flush_w3tc_cache() {
     if( class_exists('W3_Plugin_TotalCacheAdmin') )
     {
@@ -45,6 +51,12 @@ if ( ! class_exists( 'rsssl_cache' ) ) {
     }
   }
 
+      /**
+       *
+       * Flush WP Fastest Cache
+       *
+       */
+
   public function flush_fastest_cache() {
     if(class_exists('WpFastestCache') )
     {
@@ -52,12 +64,24 @@ if ( ! class_exists( 'rsssl_cache' ) ) {
     }
   }
 
+      /**
+       *
+       * Flush zen cache
+       *
+       */
+
   public function flush_zen_cache() {
     if (class_exists('\\zencache\\plugin') )
     {
       $GLOBALS['zencache']->clear_cache();
     }
   }
+
+      /**
+       *
+       * Flush WP Rocket
+       *
+       */
 
   public function flush_wp_rocket() {
     if (function_exists("rocket_clean_domain")) {
