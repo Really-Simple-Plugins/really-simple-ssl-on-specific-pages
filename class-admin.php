@@ -1949,7 +1949,46 @@ if (!class_exists('rsssl_admin')) {
             }
             return false;
         }
+        /**
+         * @return string
+         *
+         * since 3.1
+         *
+         * Determine the htaccess file. This can be either the regular .htaccess file, or an htaccess.conf file on bitnami installations.
+         *
+         *
+         */
 
+        public function htaccess_file() {
+            if ($this->uses_htaccess_conf()) {
+                $htaccess_file = realpath(dirname(ABSPATH) . "/conf/htaccess.conf");
+            } else {
+                $htaccess_file = $this->ABSpath . ".htaccess";
+            }
+
+            return $htaccess_file;
+        }
+
+        /*
+     * @Since 3.1
+     *
+     * Check if site uses an htaccess.conf file, used in bitnami installations
+     *
+     */
+
+        public function uses_htaccess_conf() {
+            $htaccess_conf_file = dirname(ABSPATH) . "/conf/htaccess.conf";
+            //conf/htaccess.conf can be outside of open basedir, return false if so
+            $open_basedir = ini_get("open_basedir");
+
+            if (!empty($open_basedir)) return false;
+
+            if (is_file($htaccess_conf_file) ) {
+                return true;
+            } else {
+                return false;
+            }
+        }
 
     }
 }//class closure
