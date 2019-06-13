@@ -346,3 +346,33 @@ input:focus + .rsssl-slider {
   list-style-type: disc;
   margin-left: 22px;
 }
+
+.really-simple-ssl-table {
+  display: flex;
+  flex-direction: column;
+  max-width: 1140px;
+}
+
+.rsssl-table-td-main-content {
+  width: 100%;
+}
+
+.really-simple-ssl-table tr:first-child {
+  border-top-left-radius: .55rem;
+  border-top-right-radius: .55rem;
+}
+
+.really-simple-ssl-table tr:last-child {
+  margin-bottom: 0;
+  border-bottom-left-radius: .55rem;
+  border-bottom-right-radius: .55rem;
+}
+
+.really-simple-ssl-table tr {
+  position: relative;
+  display: block;
+  padding: .75rem 1.25rem;
+  margin-bottom: -1px;
+  background-color: #fff;
+  border: 1px solid rgba(0,0,0,.125);
+}

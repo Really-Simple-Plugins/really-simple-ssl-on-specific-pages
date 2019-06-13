@@ -1133,13 +1133,14 @@ if (!class_exists('rsssl_admin')) {
             }
 
             if ($status != 200 || (strpos($web_source, "data-rsssl=") === false)) {
-                $this->trace_log("Check for Mixed Content detection failed, http statuscode " . $status);
-                return false;
+                $this->mixed_content_fixer_detected = FALSE;
+                $mixed_content_fixer_detected = 'not-found';
             } else {
+                $this->mixed_content_fixer_detected = TRUE;
                 $this->trace_log("Mixed content fixer was successfully detected on the front end.");
-                return true;
+                $mixed_content_fixer_detected = 'found';
             }
-
+            return $mixed_content_fixer_detected;
         }
 
 
@@ -1453,88 +1454,12 @@ if (!class_exists('rsssl_admin')) {
                     ?>
                     <h2><?php echo __("Detected setup", "really-simple-ssl"); ?></h2>
                     <table class="really-simple-ssl-table">
-
-                        <?php if ($this->site_has_ssl) { ?>
-                            <tr>
-                                <td><?php echo $this->ssl_enabled ? $this->img("success") : $this->img("error"); ?></td>
-                                <td><?php
-                                    if ($this->ssl_enabled) {
-                                        _e("SSL is enabled on your site.", "really-simple-ssl") . "&nbsp;";
-                                    } else {
-                                        _e("SSL is not enabled yet", "really-simple-ssl") . "&nbsp;";
-                                    }
-                                    ?>
-                                </td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <?php
-
-                                ?>
-                                <td><?php echo $this->has_pages_selected() ? $this->img("success") : $this->img("error"); ?></td>
-                                <td><?php
-                                    if (!$this->has_pages_selected()) {
-                                        _e("You do not have any pages selected yet. You can select enable or disable https on the page itself, or in bulk mode.", "really-simple-ssl") . "&nbsp;";
-                                    } else {
-                                        _e("Great! you already have selected some pages", "really-simple-ssl") . "&nbsp;";
-                                    }
-                                    ?>
-                                </td>
-                                <td></td>
-                            </tr>
-                        <?php }
-                        /*check for a 301 redirect */
-                        ?>
-                        <tr>
-                            <td><?php echo $this->permanent_redirect ? $this->img("success") : $this->img("error"); ?></td>
-                            <td><?php
-                                if ($this->permanent_redirect) {
-                                    _e("Great! You have a permanent 301 redirect enabled.", "really-simple-ssl") . "&nbsp;";
-                                } else {
-                                    _e('You do not have a 301 permanent redirect enabled yet.', "really-simple-ssl") . ":&nbsp;";
-                                }
-                                ?>
-                            </td>
-                            <td></td>
-                        </tr>
-                        <?php
-
-                        /* check if the mixed content fixer is working */
-
-                        if ($this->ssl_enabled && $this->has_pages_selected() && $this->autoreplace_insecure_links && $this->site_has_ssl) { ?>
-                            <tr>
-                                <td><?php echo $this->mixed_content_fixer_detected() ? $this->img("success") : $this->img("error"); ?></td>
-                                <td><?php
-                                    if ($this->mixed_content_fixer_detected()) {
-                                        _e("Mixed content fixer was successfully detected on the front-end", "really-simple-ssl") . "&nbsp;";
-                                    } elseif ($this->mixed_content_fixer_status != 0) {
-                                        _e("The mixed content is activated, but the frontpage could not be loaded for verification. The following error was returned: ", "really-simple-ssl") . "&nbsp;";
-                                        echo $this->mixed_content_fixer_status;
-                                    } else {
-                                        _e('The mixed content fixer is activated, but was not detected on the frontpage. Please follow these steps to check if the mixed content fixer is working.', "really-simple-ssl") . ":&nbsp;";
-                                        echo '&nbsp;<a target="_blank" href="https://www.really-simple-ssl.com/knowledge-base/how-to-check-if-the-mixed-content-fixer-is-active/">';
-                                        _e('Instructions', 'really-simple-ssl');
-                                        echo '</a>';
-                                    }
-                                    ?>
-                                </td>
-                                <td></td>
-                            </tr>
-                        <?php } ?>
-                        <tr>
-                            <td><?php echo ($this->site_has_ssl && $this->wpconfig_ok()) ? $this->img("success") : $this->img("error"); ?></td>
-                            <td><?php
-                                if (!$this->wpconfig_ok()) {
-                                    _e("Failed activating SSL", "really-simple-ssl") . "&nbsp;";
-                                } elseif (!$this->site_has_ssl) {
-                                    _e("No SSL detected.", "really-simple-ssl") . "&nbsp;";
-                                } else {
-                                    _e("An SSL certificate was detected on your site. ", "really-simple-ssl");
-                                }
-                                ?>
-                            </td>
-                            <td></td>
-                        </tr>
+                    <?php
+                        $notices = $this->get_notices_list();
+                        foreach ($notices as $id => $notice) {
+                        $this->notice_row($id, $notice);
+                        }
+                    ?>
                     </table>
                     <?php do_action("rsssl_configuration_page"); ?>
                     <?php
@@ -1585,6 +1510,133 @@ if (!class_exists('rsssl_admin')) {
             ?>
             <?php
         }
+
+        /**
+         * Get array of notices
+         * - condition: function returning boolean, if notice should be shown or not
+         * - callback: function, returning boolean or string, with multiple possible answers, and resulting messages and icons
+         *
+         * @return array
+         */
+
+
+    public function get_notices_list()
+    {
+        $defaults = array(
+            'condition' => array(),
+            'callback' => false,
+        );
+
+        $notices = array(
+            'mixed_content_fixer_detected' => array(
+                'callback' => 'rsssl_mixed_content_fixer_detected',
+                'output' => array(
+                    'found' => array(
+                        'msg' =>__('Mixed content fixer was successfully detected on the front-end', 'really-simple-ssl'),
+                        'icon' => 'success'
+                    ),
+                    'not-found' => array(
+                        'msg' => sprintf(__('The mixed content fixer is active, but was not detected on the frontpage. Please follow %sthese steps%s to check if the mixed content fixer is working.', "really-simple-ssl"),'<a target="_blank" href="https://www.really-simple-ssl.com/knowledge-base/how-to-check-if-the-mixed-content-fixer-is-active/">', '</a>' ),
+                        'icon' => 'error'
+                    ),
+                ),
+            ),
+
+            'ssl_detected' => array(
+                'callback' => 'rsssl_ssl_detected',
+                'output' => array(
+                    'fail' => array(
+                        'msg' =>__('Failed activating SSL.', 'really-simple-ssl'),
+                        'icon' => 'success'
+                    ),
+                    'no-ssl-detected' => array(
+                        'msg' => __('No SSL detected', 'really-simple-ssl'),
+                        'icon' => 'warning'
+                    ),
+                    'ssl-detected' => array(
+                        'msg' => __('An SSL certificate was detected on your site.', 'really-simple-ssl'),
+                        'icon' => 'success'
+                    ),
+                ),
+            ),
+
+                'ssl_enabled' => array(
+                    'callback' => 'rsssl_pages_selected',
+                    'output' => array(
+                        'no-pages-selected' => array(
+                            'msg' => __("You do not have any pages selected yet. You can select enable or disable https on the page itself, or in bulk mode.", "really-simple-ssl"),
+                            'icon' => 'warning'
+                        ),
+                        'pages-selected' => array(
+                            'msg' => __('Great! you already have selected some pages', 'really-simple-ssl'),
+                            'icon' => 'success'
+                        ),
+                    ),
+                ),
+
+            'permanent_redirect' => array(
+                'callback' => 'rsssl_permanent_redirect',
+                'output' => array(
+                    'redirect' => array(
+                        'msg' => __("Great! You have a permanent 301 redirect enabled.", "really-simple-ssl"),
+                        'icon' => 'success'
+                    ),
+                    'no-redirect' => array(
+                        'msg' => __('You do not have a 301 permanent redirect enabled yet', 'really-simple-ssl'),
+                        'icon' => 'warning'
+                    ),
+                ),
+            ),
+        );
+
+        $notices = apply_filters('rsssl_notices', $notices);
+        foreach ($notices as $id => $notice) {
+            $notices[$id] = wp_parse_args($notice, $defaults);
+        }
+
+        return $notices;
+    }
+
+       private function notice_row($id, $notice){
+        if (!current_user_can('manage_options')) return;
+
+        //check condition
+        if (!empty($notice['condition']) ) {
+            $condition_functions = $notice['condition'];
+
+            foreach ($condition_functions as $func) {
+                $condition = $func();
+                if (!$condition) return;
+            }
+        }
+
+        $func = $notice['callback'];
+        $output = $func();
+
+        error_log(print_r($notice['output'][$output], true));
+
+        if (!isset($notice['output'][$output])) {
+            error_log('Output index not set');
+            return;
+        }
+
+        $msg = $notice['output'][$output]['msg'];
+        $icon_type = $notice['output'][$output]['icon'];
+
+        if (get_option("rsssl_".$id."_dismissed")) return;
+
+        //call_user_func_array(array($classInstance, $methodName), $arg1, $arg2, $arg3);
+        $icon = $this->img($icon_type);
+        $dismiss = (isset($notice['output'][$output]['dismissible']) && $notice['output'][$output]['dismissible']) ? $this->rsssl_dismiss_button() : '';
+
+        ?>
+        <tr>
+            <td><?php echo $icon?></td><td class="rsssl-table-td-main-content"><?php echo $msg?></td>
+            <td class="rsssl-dashboard-dismiss" data-dismiss_type="<?php echo $id?>"><?php echo $dismiss?></td>
+        </tr>
+
+        <?php
+    }
 
         /**
          * Returns a succes, error or warning image for the settings page
@@ -1953,3 +2005,53 @@ if (!class_exists('rsssl_admin')) {
 
     }
 }//class closure
+
+function rsssl_pages_selected()
+{
+    if (RSSSL()->really_simple_ssl->has_pages_selected()) {
+        return 'no-pages-selected';
+    } else {
+        return 'pages-selected';
+    }
+}
+
+function rsssl_mixed_content_fixer_detected(){
+    return RSSSL()->really_simple_ssl->mixed_content_fixer_detected();
+}
+
+function rsssl_site_has_ssl(){
+    return RSSSL()->really_simple_ssl->site_has_ssl;
+}
+
+function rsssl_autoreplace_insecure_links(){
+    return RSSSL()->really_simple_ssl->autoreplace_insecure_links;
+}
+
+function rsssl_ssl_enabled(){
+    if (RSSSL()->really_simple_ssl->ssl_enabled) {
+        return '1';
+    } else {
+        return '0';
+    }
+}
+
+function rsssl_ssl_detected(){
+    if (!RSSSL()->really_simple_ssl->wpconfig_ok()) {
+        return 'fail';
+    } elseif (!RSSSL()->really_simple_ssl->site_has_ssl) {
+        return 'no-ssl-detected';
+    } else {
+        return 'ssl-detected';
+    }
+
+    return false;
+}
+
+function rsssl_permanent_redirect()
+{
+    if (RSSSL()->really_simple_ssl->permanent_redirect) {
+        return 'redirect';
+    } else {
+        return 'no-redirect';
+    }
+}
