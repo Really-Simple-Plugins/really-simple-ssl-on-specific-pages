@@ -1118,6 +1118,9 @@ if (!class_exists('rsssl_admin')) {
             }
 
             $pages = get_posts($args);
+
+            if (empty($pages) ) return 'not-found';
+
             $page = $pages[0];
 
             $url = get_permalink($page);
