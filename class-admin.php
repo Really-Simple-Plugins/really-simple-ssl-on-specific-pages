@@ -2005,6 +2005,29 @@ if (!class_exists('rsssl_admin')) {
             return false;
         }
 
+        public function htaccess_file() {
+            if ($this->uses_htaccess_conf()) {
+                $htaccess_file = realpath(dirname(ABSPATH) . "/conf/htaccess.conf");
+            } else {
+                $htaccess_file = $this->ABSpath . ".htaccess";
+            }
+
+            return $htaccess_file;
+        }
+
+        public function uses_htaccess_conf() {
+            $htaccess_conf_file = dirname(ABSPATH) . "/conf/htaccess.conf";
+            //conf/htaccess.conf can be outside of open basedir, return false if so
+            $open_basedir = ini_get("open_basedir");
+
+            if (!empty($open_basedir)) return false;
+
+            if (is_file($htaccess_conf_file) ) {
+                return true;
+            } else {
+                return false;
+            }
+        }
 
     }
 }//class closure
