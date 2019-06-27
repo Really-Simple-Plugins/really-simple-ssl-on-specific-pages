@@ -1677,10 +1677,12 @@ if (!class_exists('rsssl_admin')) {
         public function enqueue_assets($hook)
         {
 
-
-            wp_register_style('rlrsssl-css', $this->plugin_url . 'css/main.css', array(), rsssl_pp_version);
+            if (is_rtl()) {
+	            wp_register_style('rlrsssl-css', $this->plugin_url . 'css/main-rtl.min.css', array(), rsssl_pp_version);
+            } else {
+	            wp_register_style('rlrsssl-css', $this->plugin_url . 'css/main.min.css', array(), rsssl_pp_version);
+            }
             wp_enqueue_style('rlrsssl-css');
-
         }
 
         /**
