@@ -1,4 +1,9 @@
-\.manage-column.column-https{
+body {
+    direction: rtl;
+    unicode-bidi: embed;
+}
+
+.manage-column.column-https{
     width: 4em;
 }
 
