@@ -61,7 +61,7 @@ if (!class_exists('rsssl_admin')) {
             if (isset(self::$_this))
                 wp_die(sprintf(__('%s is a singleton class and you cannot create a second instance.', 'really-simple-ssl'), get_class($this)));
 
-            self::$_this = $this;
+	        self::$_this = $this;
 
             $this->upgrade();
             $this->get_options();
@@ -1563,19 +1563,19 @@ if (!class_exists('rsssl_admin')) {
                 ),
             ),
 
-                'ssl_enabled' => array(
-                    'callback' => 'rsssl_pages_selected',
-                    'output' => array(
-                        'no-pages-selected' => array(
-                            'msg' => __("You do not have any pages selected yet. You can select enable or disable https on the page itself, or in bulk mode.", "really-simple-ssl"),
-                            'icon' => 'warning'
-                        ),
-                        'pages-selected' => array(
-                            'msg' => __('Great! you already have selected some pages', 'really-simple-ssl'),
-                            'icon' => 'success'
-                        ),
+            'ssl_enabled' => array(
+                'callback' => 'rsssl_pages_selected',
+                'output' => array(
+                    'no-pages-selected' => array(
+                        'msg' => __("You do not have any pages selected yet. You can select enable or disable https on the page itself, or in bulk mode.", "really-simple-ssl"),
+                        'icon' => 'warning'
+                    ),
+                    'pages-selected' => array(
+                        'msg' => __('Great! you already have selected some pages', 'really-simple-ssl'),
+                        'icon' => 'success'
                     ),
                 ),
+            ),
 
             'permanent_redirect' => array(
                 'callback' => 'rsssl_permanent_redirect',
@@ -1615,8 +1615,6 @@ if (!class_exists('rsssl_admin')) {
 
         $func = $notice['callback'];
         $output = $func();
-
-        error_log(print_r($notice['output'][$output], true));
 
         if (!isset($notice['output'][$output])) {
             error_log('Output index not set');
@@ -2037,9 +2035,9 @@ if (!class_exists('rsssl_admin')) {
 function rsssl_pages_selected()
 {
     if (RSSSL()->really_simple_ssl->has_pages_selected()) {
-        return 'no-pages-selected';
-    } else {
         return 'pages-selected';
+    } else {
+        return 'no-pages-selected';
     }
 }
 
