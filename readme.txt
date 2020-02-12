@@ -5,7 +5,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 5.2
-Stable tag: 2.0.13
+Stable tag: 2.0.14
 
 Premium support and features for Really Simple SSL
 
@@ -28,6 +28,10 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 2.0.14 =
+* Added consent api compatibility
+* Fixed a bug where the pages on SSL count was incorrect
+
 = 2.0.13 =
 * Added htaccess functions
 
