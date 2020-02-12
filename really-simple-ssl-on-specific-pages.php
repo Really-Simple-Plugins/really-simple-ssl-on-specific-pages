@@ -3,7 +3,7 @@
  * Plugin Name: Really Simple SSL on specific pages
  * Plugin URI: https://www.really-simple-ssl.com
  * Description: Lightweight plugin without any setup to make your site ssl proof
- * Version: 2.0.13
+ * Version: 2.0.14
  * Text Domain: really-simple-ssl-specific-pages
  * Domain Path: /languages
  * Author: Rogier Lankhorst
@@ -116,6 +116,10 @@ class REALLY_SIMPLE_SSL_PP
 
     private function hooks()
     {
+	    // Consent API compatibility
+	    add_filter("wp_consent_api_registered_".rsssl_pp_plugin, function(){
+		    return true;
+	    });
         if (is_admin()) {
             add_action("plugins_loaded", array(self::$instance->really_simple_ssl, "init"), 10);
         }
