@@ -138,6 +138,20 @@ if (!class_exists('rsssl_admin')) {
             return $result;
         }
 
+	    /**
+	     * @param $setting_name
+	     *
+	     * @return string
+	     *
+	     * Generate an enable link for the specific setting, redirects to settings page and highlights the setting.
+	     *
+	     */
+
+	    public function generate_enable_link($setting_name)
+	    {
+		    return add_query_arg(array("page"=>"rlrsssl_really_simple_ssl", "tab"=>"settings", "highlight"=>"$setting_name"),admin_url("options-general.php"));
+	    }
+
         /**
          * Initializes the admin class
          *
