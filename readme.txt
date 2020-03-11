@@ -4,7 +4,7 @@ Donate link: https://www.paypal.me/reallysimplessl
 Tags: mixed content, insecure content, secure website, website security, ssl, https, tls, security, secure socket layers, hsts
 Requires at least: 4.2
 License: GPL2
-Tested up to: 5.2
+Tested up to: 5.4
 Stable tag: 2.0.15
 
 Premium support and features for Really Simple SSL
