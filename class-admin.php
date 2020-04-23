@@ -2046,52 +2046,64 @@ if (!class_exists('rsssl_admin')) {
     }
 }//class closure
 
-function rsssl_pages_selected()
-{
-    if (RSSSL()->really_simple_ssl->has_pages_selected()) {
-        return 'pages-selected';
-    } else {
-        return 'no-pages-selected';
-    }
+if (!function_exists('rsssl_pages_selected')) {
+	function rsssl_pages_selected() {
+		if ( RSSSL()->really_simple_ssl->has_pages_selected() ) {
+			return 'pages-selected';
+		} else {
+			return 'no-pages-selected';
+		}
+	}
 }
 
-function rsssl_mixed_content_fixer_detected(){
-    return RSSSL()->really_simple_ssl->mixed_content_fixer_detected();
+if (!function_exists('rsssl_mixed_content_fixer_detected')) {
+	function rsssl_mixed_content_fixer_detected() {
+		return RSSSL()->really_simple_ssl->mixed_content_fixer_detected();
+	}
 }
 
-function rsssl_site_has_ssl(){
-    return RSSSL()->really_simple_ssl->site_has_ssl;
+if (!function_exists('rsssl_site_has_ssl')) {
+	function rsssl_site_has_ssl() {
+		return RSSSL()->really_simple_ssl->site_has_ssl;
+	}
 }
 
-function rsssl_autoreplace_insecure_links(){
-    return RSSSL()->really_simple_ssl->autoreplace_insecure_links;
+if (!function_exists('rsssl_autoreplace_insecure_links')) {
+	function rsssl_autoreplace_insecure_links() {
+		return RSSSL()->really_simple_ssl->autoreplace_insecure_links;
+	}
 }
 
-function rsssl_ssl_enabled(){
-    if (RSSSL()->really_simple_ssl->ssl_enabled) {
-        return '1';
-    } else {
-        return '0';
-    }
+if (!function_exists('rsssl_ssl_enabled')) {
+	function rsssl_ssl_enabled() {
+		if ( RSSSL()->really_simple_ssl->ssl_enabled ) {
+			return '1';
+		} else {
+			return '0';
+		}
+	}
 }
 
-function rsssl_ssl_detected(){
-    if (!RSSSL()->really_simple_ssl->wpconfig_ok()) {
-        return 'fail';
-    } elseif (!RSSSL()->really_simple_ssl->site_has_ssl) {
-        return 'no-ssl-detected';
-    } else {
-        return 'ssl-detected';
-    }
+if (!function_exists('rsssl_ssl_detected')) {
+	function rsssl_ssl_detected() {
+		if ( ! RSSSL()->really_simple_ssl->wpconfig_ok() ) {
+			return 'fail';
+		} elseif ( ! RSSSL()->really_simple_ssl->site_has_ssl ) {
+			return 'no-ssl-detected';
+		} else {
+			return 'ssl-detected';
+		}
 
-    return false;
+		return false;
+	}
 }
 
-function rsssl_permanent_redirect()
-{
-    if (RSSSL()->really_simple_ssl->permanent_redirect) {
-        return 'redirect';
-    } else {
-        return 'no-redirect';
-    }
+if (!function_exists('rsssl_permanent_redirect')) {
+	function rsssl_permanent_redirect() {
+		if ( RSSSL()->really_simple_ssl->permanent_redirect ) {
+			return 'redirect';
+		} else {
+			return 'no-redirect';
+		}
+	}
 }
