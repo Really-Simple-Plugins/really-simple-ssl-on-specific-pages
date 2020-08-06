@@ -6,8 +6,8 @@
  * Version: 2.0.17
  * Text Domain: really-simple-ssl-specific-pages
  * Domain Path: /languages
- * Author: Rogier Lankhorst
- * Author URI: https://www.rogierlankhorst.com
+ * Author: Really Simple Plugins
+ * Author URI: https://www.really-simple-plugins.com
  * License: GPL2
  */
 
