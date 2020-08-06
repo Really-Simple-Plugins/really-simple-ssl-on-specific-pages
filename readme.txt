@@ -5,7 +5,7 @@ Tags: mixed content, insecure content, secure website, website security, ssl, ht
 Requires at least: 4.2
 License: GPL2
 Tested up to: 5.5
-Stable tag: 2.0.16
+Stable tag: 2.0.17
 
 Premium support and features for Really Simple SSL
 
@@ -28,6 +28,10 @@ For more information: go to the [website](https://www.really-simple-ssl.com/), o
 == Frequently Asked Questions ==
 
 == Changelog ==
+= 2.0.17 =
+* Tested up to WordPress 5.5
+* Removed consent API support
+
 = 2.0.16 =
 * Added function_exists checks
 
