@@ -90,6 +90,8 @@ class REALLY_SIMPLE_SSL_PP
         define('rsssl_pp_path', plugin_dir_path(__FILE__));
         define('rsssl_pp_plugin', plugin_basename(__FILE__));
         define('rsssl_pp_version', $plugin_data['Version']);
+	    define('rsssl_url', plugin_dir_url(__FILE__));
+
     }
 
     private function includes()

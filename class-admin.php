@@ -393,31 +393,40 @@ if (!class_exists('rsssl_admin')) {
             if (!$this->wpconfig_ok()) return;
             if (!current_user_can($this->capability)) return;
 
-            if (!$this->site_has_ssl) { ?>
-                <div id="message" class="error fade notice activate-ssl">
-                    <p><?php _e("No SSL was detected. If you do have an ssl certificate, try to change your current url in the browser address bar to https.", "really-simple-ssl"); ?></p>
-                </div>
-            <?php } else { ?>
+            if (!$this->site_has_ssl) {
+	            $class = "error fade notice activate-ssl";
+	            $title = '';
+                $content = __("No SSL was detected. If you do have an ssl certificate, try to change your current url in the browser address bar to https.", "really-simple-ssl");
+             } else {
+	            $class = "updated fade notice activate-ssl";
+                $title = __("Almost ready to enable SSL for some pages!", "really-simple-ssl");
+	            $content = '';
+            }
 
-                <div id="message" class="updated fade notice activate-ssl">
-                <h1><?php _e("Almost ready to enable SSL for some pages!", "really-simple-ssl"); ?></h1>
-                <?php
-            } ?>
-            <?php _e("Some things can't be done automatically. Before you start, please check for: ", 'really-simple-ssl'); ?>
+	        ob_start();
+            ?>
             <p>
-            <ul>
-                <li><?php _e('Http references in your .css and .js files: change any http:// into //', 'really-simple-ssl'); ?></li>
-                <li><?php _e('Images, stylesheets or scripts from a domain without an ssl certificate: remove them or move to your own server.', 'really-simple-ssl'); ?></li>
-            </ul>
-            <?php if ($this->site_has_ssl) { ?>
-                <form action="" method="post">
-                    <?php wp_nonce_field('rsssl_nonce', 'rsssl_nonce'); ?>
-                    <input type="submit" class='button button-primary' value="Enable SSL per page!"
-                           id="rsssl_do_activate_ssl" name="rsssl_do_activate_ssl">
-                </form>
-            </div>
-            <?php } ?>
-        <?php }
+                <?php _e("Some things can't be done automatically. Before you start, please check for: ", 'really-simple-ssl')?>
+                <ul>
+                    <li><?php _e('Http references in your .css and .js files: change any http:// into //', 'really-simple-ssl'); ?></li>
+                    <li><?php _e('Images, stylesheets or scripts from a domain without an ssl certificate: remove them or move to your own server.', 'really-simple-ssl'); ?></li>
+                </ul>
+
+                <?php if ($this->site_has_ssl) { ?>
+                    <form action="" method="post">
+                        <?php wp_nonce_field('rsssl_nonce', 'rsssl_nonce'); ?>
+                        <input type="submit" class='button button-primary' value="Enable SSL per page!"
+                               id="rsssl_do_activate_ssl" name="rsssl_do_activate_ssl">
+                    </form>
+                <?php } ?>
+            </p>
+            <?php
+	        $content .= ob_get_clean();
+
+	        echo $this->notice_html( $class, $title, $content);
+
+
+        }
 
         /**
          * @since 2.3
@@ -1474,7 +1483,7 @@ if (!class_exists('rsssl_admin')) {
                     <?php
                         $notices = $this->get_notices_list();
                         foreach ($notices as $id => $notice) {
-                        $this->notice_row($id, $notice);
+                            $this->notice_row($id, $notice);
                         }
                     ?>
                     </table>
@@ -1628,6 +1637,9 @@ if (!class_exists('rsssl_admin')) {
         }
 
         $func = $notice['callback'];
+        if (!function_exists($func)) {
+            return;
+        }
         $output = $func();
 
         if (!isset($notice['output'][$output])) {
@@ -1896,6 +1908,142 @@ if (!class_exists('rsssl_admin')) {
             RSSSL()->rsssl_help->get_help_tip(__("For your SEO a 301 permanent redirect is best. It is not turned on by default, as it might make it difficult to switch when you are still configuring.", "really-simple-ssl"));
         }
 
+	    /**
+	     * @param string $class
+	     * @param string $title
+	     * @param string $content
+	     * @param string|bool $footer
+	     * @return false|string
+	     *
+	     * @since 4.0
+	     * Return the notice HTML
+	     *
+	     */
+
+	    public function notice_html($class, $title, $content, $footer=false) {
+		    ob_start();
+		    ?>
+            <style>
+                #rsssl-message.error{
+                    border-left-color:#d7263d;
+                }
+                .activate-ssl {
+                    border-left: 4px solid #F8BE2E;
+                }
+                .activate-ssl .button {
+                    margin-bottom: 5px;
+                }
+
+                .button-rsssl-secondary {
+                    color: #7B8CB7;
+                    background-color: #fff;
+                }
+
+                #rsssl-message .button-primary {
+                    margin-right: 10px;
+                }
+
+                .rsssl-notice-header {
+                    height: 60px;
+                    border-bottom: 1px solid #dedede;
+                    display: flex;
+                    flex-direction: row;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding-left: 25px;
+                }
+
+                #rsssl-logo-activation {
+                    margin-right: 25px;
+                }
+                .rsssl-notice-header h1 {
+                    font-weight: bold;
+                }
+
+                .rsssl-notice-content {
+                    margin-top: 20px;
+                    padding-bottom: 20px;
+                    padding-left: 25px;
+
+                }
+
+                .rsssl-notice-footer {
+                    border-top: 1px solid #dedede;
+                    height: 35px;
+                    display: flex;
+                    align-items: center;
+                    padding-top: 10px;
+                    padding-bottom: 10px;
+                    margin-left: 25px;
+                    margin-right: 25px;
+                }
+
+                #rsssl-message {
+                    /*margin: 0 0 20px 20px;*/
+                    padding: 0;
+                    border-left-color: #333;
+                }
+
+                #rsssl-message .rsssl-notice-li::before {
+                    vertical-align: middle;
+                    margin-right: 25px;
+                    color: lightgrey;
+                    content: "\f345";
+                    font: 400 21px/1 dashicons;
+                }
+
+                #rsssl-message ul {
+                    list-style: none;
+                    list-style-position: inside;
+                }
+                #rsssl-message li {
+                    margin-left:30px;
+                    margin-bottom:10px;
+                }
+                #rsssl-message li:before {
+                    background-color: #f8be2e;
+                    color: #fff;
+                    height: 10px;
+                    width: 10px;
+                    border-radius:50%;
+                    content: '';
+                    position: absolute;
+                    margin-top: 5px;
+                    margin-left:-30px;
+                }
+
+                .settings_page_rlrsssl_really_simple_ssl #wpcontent #rsssl-message, .settings_page_really-simple-ssl #wpcontent #rsssl-message {
+                    margin: 20px;
+                }
+                <?php echo apply_filters('rsssl_pro_inline_style', ''); ?>
+
+            </style>
+
+            <div id="rsssl-message" class="notice <?php echo $class?> really-simple-plugins">
+                <div class="rsssl-notice">
+                    <div class="rsssl-notice-header">
+                        <h1><?php echo $title ?></h1>
+                        <div id="rsssl-logo-activation"><img width="180px" src="<?php echo rsssl_url?>/assets/logo-really-simple-ssl.png" alt="really-simple-ssl-logo"></div>
+                    </div>
+                    <div class="rsssl-notice-content">
+					    <?php echo $content ?>
+                    </div>
+				    <?php
+				    if ($footer ) { ?>
+                        <div class="rsssl-notice-footer">
+						    <?php
+						    echo $footer;
+						    ?>
+                        </div>
+				    <?php } ?>
+                </div>
+            </div>
+		    <?php
+
+		    $content = ob_get_clean();
+		    return $content;
+	    }
+
         /**
          *
          *
@@ -2104,6 +2252,16 @@ if (!function_exists('rsssl_permanent_redirect')) {
 			return 'redirect';
 		} else {
 			return 'no-redirect';
+		}
+	}
+}
+
+if (!function_exists('rsssl_uses_elementor')) {
+	function rsssl_uses_elementor() {
+		if ( defined( 'ELEMENTOR_VERSION' ) || defined( 'ELEMENTOR_PRO_VERSION' ) ) {
+			return 'uses-elementor';
+		} else {
+			return 'no-elementor';
 		}
 	}
 }
