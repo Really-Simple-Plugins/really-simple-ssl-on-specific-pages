@@ -1722,14 +1722,8 @@ if (!class_exists('rsssl_admin')) {
         {
             if (current_user_can($this->capability)) {
                 add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
-
                 add_action('admin_init', array($this, 'load_translation'), 20);
-
-                global $rssslpp_licensing;
-                add_action('show_tab_license', array($rssslpp_licensing, 'add_license_page'));
-                add_filter('rsssl_tabs', array($rssslpp_licensing, 'add_license_tab'), 20, 3);
                 add_action('rsssl_configuration_page', array($this, 'configuration_page_more'));
-
                 //settings page, form creation and settings link in the plugins page
                 add_action('admin_menu', array($this, 'add_settings_page'), 40);
 

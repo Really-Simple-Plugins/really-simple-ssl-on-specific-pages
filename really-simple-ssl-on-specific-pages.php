@@ -24,7 +24,6 @@ class REALLY_SIMPLE_SSL_PP
     public $rsssl_cache;
     public $really_simple_ssl;
     public $rsssl_help;
-    public $rssslpp_licensing;
     public $page_option;
     public $rsssl_url;
     public $rsssl_server;
@@ -54,7 +53,6 @@ class REALLY_SIMPLE_SSL_PP
 
             if (is_admin()) {
                 self::$instance->rsssl_cache = new rsssl_cache();
-                self::$instance->rssslpp_licensing = new rssslpp_licensing();
                 self::$instance->rsssl_url = new rsssl_url();
                 self::$instance->really_simple_ssl = new rsssl_admin();
                 self::$instance->page_option = new rsssl_page_option();
@@ -65,8 +63,7 @@ class REALLY_SIMPLE_SSL_PP
                 }
 
                 // Backwards compatibility for add-ons
-                global $rsssl_cache, $rsssl_url, $really_simple_ssl, $rsssl_help, $page_option, $rssslpp_licensing, $rsssl_server;
-                $rssslpp_licensing = self::$instance->rssslpp_licensing;
+                global $rsssl_cache, $rsssl_url, $really_simple_ssl, $rsssl_help, $page_option, $rsssl_server;
                 $rsssl_url = self::$instance->rsssl_url;
                 $rsssl_cache = self::$instance->rsssl_cache;
                 $really_simple_ssl = self::$instance->really_simple_ssl;
@@ -103,7 +100,6 @@ class REALLY_SIMPLE_SSL_PP
             require_once(rsssl_pp_path . '/class-admin.php');
             require_once(rsssl_pp_path . '/class-cache.php');
             require_once(rsssl_pp_path . '/class-help.php');
-            require_once(rsssl_pp_path . '/class-licensing.php');
             require_once(rsssl_pp_path . '/class-admin.php');
             require_once(rsssl_pp_path . '/class-cache.php');
             require_once(rsssl_pp_path . '/class-url.php');
